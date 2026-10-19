@@ -13,7 +13,7 @@ except ImportError:  # pragma: no cover - older typer depends on click directly
     from click.exceptions import UsageError
 
 from . import __version__, output
-from .commands import asr, auth, comment, danmaku, dm, dynamic, feed, hot, me, owner, search, upload, video
+from .commands import asr, auth, comment, danmaku, dm, dynamic, feed, hot, me, owner, search, skills, upload, video
 from .errors import ERROR_TABLE, BiliError
 from .runtime import run
 
@@ -42,6 +42,7 @@ app.add_typer(asr.app, name="asr")
 app.add_typer(hot.app, name="hot")
 app.add_typer(dm.app, name="dm")
 app.add_typer(owner.app, name="owner")
+app.add_typer(skills.app, name="skills")
 
 # Global flags may appear anywhere on the command line (agents tend to append
 # them at the end); main() moves them in front of the subcommand.

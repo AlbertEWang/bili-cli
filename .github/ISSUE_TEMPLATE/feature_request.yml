@@ -1,0 +1,20 @@
+name: ✨ 功能建议 / Feature request
+description: 希望 Agent 能在 B 站上做的新事情
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        下载、付费内容、绕过风控、多账号、刷量、批量私信等功能不在本项目范围内，见 DISCLAIMER.md。
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 使用场景 / Scenario
+      description: 你希望 Agent 帮你做什么？现在卡在哪一步？
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 期望的命令或输出 / Proposal
+      placeholder: bili xxx --yyy → {"ok": true, "data": {...}}

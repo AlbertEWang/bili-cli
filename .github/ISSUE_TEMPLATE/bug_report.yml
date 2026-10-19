@@ -1,0 +1,39 @@
+name: 🐛 Bug 反馈 / Bug report
+description: 命令报错、结果不对、接口失效
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交前请先 `bili --version` 确认是最新版本。**不要**粘贴 credential.json、Cookie 或 API Key。
+  - type: input
+    id: command
+    attributes:
+      label: 执行的命令 / Command
+      placeholder: bili video watch BV1xx411c7mD
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: 输出的 JSON / Output
+      description: 粘贴完整的 stdout（包含 error.code 和 detail.bili_code），可加 --pretty。
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望的结果 / Expected
+  - type: input
+    id: version
+    attributes:
+      label: 版本与系统 / Version & OS
+      placeholder: "0.1.0, Windows 11, Python 3.12"
+    validations:
+      required: true
+  - type: dropdown
+    id: agent
+    attributes:
+      label: 由哪个 Agent 调用 / Driven by
+      options: [我自己手动运行, Claude Code, Codex, Cursor, Gemini CLI, OpenClaw, 其他]

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 安全问题 / Security
+    url: https://github.com/kukemc/bili-cli/security/advisories/new
+    about: 凭证泄露、绕过护栏等安全问题请私下报告，不要公开提 Issue。

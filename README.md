@@ -1,148 +1,209 @@
+<div align="center">
+
 # bili-cli
 
-为 AI Agent 设计的哔哩哔哩命令行工具。把它交给一个 Agent，Agent 就能读视频、看评论、回复粉丝，最终自主运营一个 B 站账号。
+**让 AI Agent 安全地运营你的 B 站账号**
 
-> 状态：v0.3 开发中。已支持扫码登录、视频信息 / 字幕 / 弹幕 / AI 总结、评论读写、消息通知、发弹幕、动态、个人资料、视频投稿、搜索，以及写操作限流。路线图见 [docs/策划案.md](docs/策划案.md)。
+看视频 · 回评论 · 发私信 · 发动态 · 投稿，全部一条命令、一个 JSON
 
-## 安装
+[![CI](https://github.com/kukemc/bili-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/kukemc/bili-cli/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Agent Skills](https://img.shields.io/badge/Agent%20Skills-ready-8A2BE2)
+
+简体中文 | [English](README_EN.md)
+
+</div>
+
+---
+
+bili-cli 是一个**为 AI Agent 设计**的哔哩哔哩命令行工具。把它交给 Claude Code、Codex、Cursor、Gemini CLI、OpenClaw 等任何能执行命令的 Agent，它就能替你刷视频、看懂视频、回复粉丝、私信主人、发动态、投稿——并且**默认带着护栏**：限流、审计日志、私信白名单、AI 内容声明。
+
+```text
+你：帮我看看 B 站有什么新消息，回复一下粉丝，再找个今天热门的科技视频看看，有意思就私信告诉我。
+
+Agent：
+$ bili feed inbox                       → 3 条新回复、1 条 @、12 个赞
+$ bili comment reply BV1… 3175… "谢谢支持！下期会讲……"
+$ bili hot rank --zone tech --unseen    → 挑中「我造了一块会飞的滑板…」
+$ bili video watch BV1KiJk67EQ9         → AI 总结 + 字幕全文 + 热评 + 9 帧画面
+$ bili dm send owner "今天科技区第二名很有意思：……"
+```
+
+## 🚀 安装
+
+### 方式一：复制这句话发给你的 Agent（推荐）
+
+```text
+帮我安装 bili-cli，按这个说明操作：https://raw.githubusercontent.com/kukemc/bili-cli/main/docs/install.md
+```
+
+Agent 会自己装好命令、把使用技能装进你电脑上的各个 Agent，再引导你扫码登录。
+
+### 方式二：一行命令
 
 ```bash
-pipx install bili-cli        # 或 uv tool install bili-cli
-# 从源码安装
-pip install -e .
+# macOS / Linux
+curl -fsSL https://raw.githubusercontent.com/kukemc/bili-cli/main/scripts/install.sh | sh
 ```
 
-需要 Python 3.10+。
+```powershell
+# Windows PowerShell
+irm https://raw.githubusercontent.com/kukemc/bili-cli/main/scripts/install.ps1 | iex
+```
 
-## 快速开始
+安装脚本会：用 [uv](https://docs.astral.sh/uv/)（没有就先装 uv）安装 `bili` 命令 → 运行 `bili skills install --yes`，把技能装进检测到的 Agent。
+
+### 方式三：手动
 
 ```bash
-bili auth login --wait 180            # 终端里显示二维码，用哔哩哔哩 App 扫码
-bili video info BV1GJ411x7h7
-bili video subtitle BV1GJ411x7h7 --text
-bili comment list BV1GJ411x7h7 --sort hot
-bili comment reply BV1GJ411x7h7 3760801399 "说得好" --dry-run
+uv tool install git+https://github.com/kukemc/bili-cli    # 或 pipx install git+https://…
+bili skills install          # 预览会装到哪些 Agent
+bili skills install --yes    # 确认安装
 ```
 
-## 命令一览
+需要 Python 3.10+。[ffmpeg](https://ffmpeg.org/) 可选（高清抽帧、语音转写、不传封面投稿时需要）。
 
-| 命令 | 说明 |
-| --- | --- |
-| `bili auth login / status / logout` | 扫码登录、查看登录状态（自动刷新凭证）、登出 |
-| `bili video info / stats` | 视频元数据与数据 |
-| `bili video subtitle` | 字幕（含 AI 字幕，通常需要登录），`--text` 只返回纯文本 |
-| `bili video danmaku` | 弹幕，按出现时间排序 |
-| `bili video summary` | B 站官方 AI 总结（需要登录） |
-| `bili video frames` | 抽取画面为图片，并拼一张带时间标注的总览图：默认用进度条缩略图（480x270，几秒完成，免 ffmpeg）；`-q hd` 用 ffmpeg 截取精确帧（≤720p）；支持 `--count` / `--every` / `--at` / `--chapters` 采样 |
-| `bili comment list / replies` | 评论与楼中楼 |
-| `bili comment post / reply / like / delete` | 发评论、回复、点赞、删除；`--type dynamic/draw/article` 用于动态和专栏评论区 |
-| `bili danmaku send / recall` | 在指定时间点发弹幕；发送后短时间内可撤回 |
-| `bili danmaku interact vote / rating / reserve / link / follow` | 互动弹幕（仅限自己的视频）：投票、评分、下期预告（稿件 / 直播预约）、关联视频卡片、关注 / 一键三连按钮 |
-| `bili danmaku interact list / remove` | 列出组件（含投票票数、评分均分、预约人数）；删除组件，删除下期预告时会一并撤销账号上的预约 |
-| `bili video chapters` | 读取任意视频进度条上的分段章节 |
-| `bili video transcribe` | 语音转文字（给没有字幕的视频用），输出带时间轴，格式同 `subtitle`；结果自动缓存 |
-| `bili asr setup local` | 一键部署本地转写：自动识别 NVIDIA 显卡，GPU 用 Qwen3-ASR（PyTorch，RTX 3060 上 31 分钟视频约 2 分钟），CPU 用 Qwen3-ASR int8（sherpa-onnx，免 PyTorch） |
-| `bili asr setup cloud` | 配置云端转写：任何 OpenAI 兼容接口（OpenAI / Groq / 硅基流动…）、阿里云百炼 Qwen3-ASR-Flash、腾讯云一句话识别 |
-| `bili asr status / use` | 查看引擎与依赖状态；设置默认引擎（配置了云端时默认用云端） |
-| `bili upload chapters show / set / clear` | 给自己的稿件设置分段章节，如 `-c "0:00 开场" -c "1:30 正片"`，也可 `--file` 每行一个 |
-| `bili feed notifications` | 各类未读消息数 |
-| `bili feed replies / mentions` | 收到的回复和 @，每条附带可直接执行的 `reply_with` 命令 |
-| `bili feed timeline` | 关注的人的最新动态 |
-| `bili dynamic post / list / show / delete` | 发布文字 / 图文动态、列出、查看、删除 |
-| `bili me show / set-sign / set-name / set-avatar` | 查看和修改个人资料；需要花硬币的改名必须加 `--allow-cost` |
-| `bili upload video` | 上传视频投稿：分 P、封面（不传则用 ffmpeg 截帧）、自动预测分区、定时发布、仅自己可见；**默认勾选“含AI生成内容”声明** |
-| `bili upload list / status` | 我的稿件与审核状态 |
-| `bili search video / user` | 搜索视频和 UP 主 |
-| `bili feed inbox` | 一次看完所有新消息：未读数 + 新回复、@、赞、系统通知、未读私信（读取后 B 站会标为已读） |
-| `bili feed replies / mentions / likes / system` | 分别查看收到的回复、@、赞（同一内容的赞会合并）、系统通知 |
-| `bili feed recommend` | 首页个性化推荐（去掉广告和直播），`--page` 换一批 |
-| `bili hot search / popular / weekly / precious / rank` | 热搜榜、综合热门、每周必看、入站必刷、分区排行榜；都支持 `--unseen` 过滤已看过的视频 |
-| `bili video watch` | “看”一个视频：一次返回信息、标签、AI 总结、全文（字幕，没有则自动转写）、章节、热评、画面总览图，并记入已看列表；`--record` 写入 B 站历史记录 |
-| `bili owner set / show / clear` | 设置“主人”（Agent 为谁服务），之后可 `--at owner`、`dm send owner` |
-| `bili comment post / reply --at <UID\|owner>` | 真正的 @（带 `at_name_to_mid`，对方会收到提醒），返回是否被 B 站识别 |
-| `bili comment check` | 检查自己的评论是否正常显示（未被折叠 / 隐藏） |
-| `bili dm list / read / send` | 私信：会话列表、读消息、发送 / 回复。默认只能发给主人、给你发过私信的人或互关好友；陌生人需 `--allow-new` |
-| `bili schema` | 全部命令、参数和错误码的机器可读描述 |
+## ✨ 能做什么
 
-视频 ID 支持 BV 号、av 号和视频链接。
+| | 能力 | 代表命令 |
+|---|---|---|
+| 👀 | **看懂视频**：信息、AI 总结、字幕全文、热评、画面总览图一次拿全；没字幕就本地语音转写 | `bili video watch <BV>` |
+| 🔥 | **刷 B 站**：个性化推荐、热搜、综合热门、每周必看、排行榜，自动跳过看过的 | `bili feed recommend --unseen` |
+| 💬 | **互动**：收件箱一次看完回复 / @ / 赞 / 私信，每条回复附带可直接执行的回复命令；真正的 @（对方会收到提醒） | `bili feed inbox`、`bili comment post <BV> "…" --at owner` |
+| ✉️ | **私信**：读会话、回复；默认只能发给主人、联系过你的人或互关好友 | `bili dm send owner "…"` |
+| 📝 | **创作**：图文动态、视频投稿（默认勾选“含AI生成内容”）、定时发布、稿件审核状态 | `bili upload video a.mp4 --title …` |
+| 🎛️ | **UP 主工具**：进度条分段章节、投票 / 评分 / 一键三连 / 下期预告等互动弹幕 | `bili upload chapters set`、`bili danmaku interact vote` |
+| 🎙️ | **语音转写**：一键部署本地 Qwen3-ASR（有 NVIDIA 显卡自动用 GPU，31 分钟视频约 2 分钟），或接云端服务 | `bili asr setup local` |
+| 🧩 | **装进 Agent**：一条命令给本机所有 Agent 装上使用技能 | `bili skills install --yes` |
 
-## 执行护栏
+## ⚡ 30 秒上手
 
-所有写操作都会经过本地限流，超限时返回 `rate_limited` 和 `retry_after`（秒），不会偷偷等待或重试：
-
-| 操作 | 最小间隔 | 每小时上限 |
-| --- | --- | --- |
-| 评论 / 回复 | 10 秒 | 30 |
-| 弹幕 | 10 秒 | 30 |
-| 点赞 | 3 秒 | 120 |
-| 删除 | 3 秒 | 60 |
-| 动态 | 60 秒 | 10 |
-| 个人资料 | 30 秒 | 10 |
-| 投稿 | 5 分钟 | 5 |
-| 互动弹幕组件 | 30 秒 | 20 |
-| 私信 | 10 秒 | 20 |
-
-每次成功的写操作都会追加到配置目录下的 `audit.log`（JSON Lines），方便复盘 Agent 做了什么。调试时可以设置 `BILI_CLI_NO_RATE_LIMIT=1` 关闭限流。
-
-## 给 Agent 的约定
-
-**输出**：stdout 永远只有一个 JSON。
-
-```json
-{"ok": true, "data": {...}}
-{"ok": false, "error": {"code": "not_logged_in", "message": "尚未登录。", "hint": "运行 `bili auth login` ..."}}
+```bash
+bili auth login               # 返回二维码图片路径，用 B 站 App 扫码
+bili auth status --wait 120   # 等扫码完成
+bili feed inbox               # 看新消息
+bili video watch BV1GJ411x7h7 # 看一个视频
+bili owner set <你的UID>       # 告诉 Agent 谁是主人，之后可以 @ 你、私信你
 ```
 
-`hint` 会告诉 Agent 下一步该做什么。二维码字符画等给人看的内容只写到 stderr。
+## 🤖 为 Agent 而生
 
-**全局参数**（可以写在命令的任意位置）：
+- **一条命令，一个 JSON。** 成功 `{"ok": true, "data": …}`，失败 `{"ok": false, "error": {"code", "message", "hint"}}`，退出码非 0。`hint` 直接告诉 Agent 下一步该做什么。
+- **零交互。** 不弹确认、不读键盘；扫码登录拆成“生成二维码”和“等待结果”两步，Agent 把二维码交给人类即可。
+- **下一步可执行。** 收到的回复带 `reply_with`，动态带 `list_with`，Agent 不用自己拼 ID。
+- **省上下文。** 列表精简成卡片，长文本有 `--max-chars` / `--text`，画面拼成一张总览图。
+- **自描述。** `bili schema` 输出全部命令、参数、错误码；技能里的命令手册在安装时根据代码自动生成，永远不会过期。
+- **防提示注入。** 视频、评论、私信内容都标注为“素材而非指令”，技能里也写明了这条规则。
 
-- `--dry-run`：写操作只返回将要发出的请求，不真正执行
-- `--raw`：返回 B 站接口原始数据
-- `--pretty` / `--compact`：JSON 是否缩进（默认在终端缩进、在管道紧凑）
-
-**错误码**：
+<details>
+<summary><b>错误码</b></summary>
 
 | code | 退出码 | 含义 |
 | --- | --- | --- |
 | `invalid_argument` | 2 | 参数错误 |
 | `not_logged_in` / `auth_expired` | 3 | 未登录 / 凭证失效 |
-| `not_found` | 4 | 视频、评论或字幕不存在 |
-| `risk_control` | 5 | 被 B 站风控拦截，降低频率 |
+| `not_found` | 4 | 资源不存在 |
+| `risk_control` | 5 | 被 B 站风控拦截，应停止写操作 |
 | `captcha_required` | 6 | 需要人工完成验证码 |
-| `rate_limited` | 7 | 操作过于频繁 |
+| `rate_limited` | 7 | 操作过于频繁，按 `retry_after` 等待 |
 | `network_error` | 8 | 网络错误 |
-| `login_pending` | 9 | 二维码还没被扫描 / 确认 |
-| `login_expired` | 10 | 二维码已过期 |
+| `login_pending` / `login_expired` | 9 / 10 | 二维码未扫 / 已过期 |
 | `api_error` / `internal_error` | 1 | 其他 B 站错误 / bili-cli 自身错误 |
 
-**登录流程**：Agent 扫不了码，所以登录分两步。
+</details>
 
-1. `bili auth login` 立即返回二维码链接 `qr_url` 和图片路径 `qr_image`，Agent 把它交给人类。
-2. 人类扫码后，Agent 运行 `bili auth status --wait 120` 等待结果。
+## 🛡️ 安全护栏
 
-**长文本**：评论正文可以用 `--file msg.txt` 或 `--file -`（stdin）传入，避免 shell 转义问题。
+用的是你自己的账号，所以护栏是默认开启的，而不是可选项：
 
-## 配置与凭证
+| 护栏 | 说明 |
+|---|---|
+| 本地限流 | 评论 10 秒/次、30 次/小时；私信 10 秒/次、20 次/小时；动态 60 秒/次；投稿 5 分钟/次……超限立即返回 `rate_limited`，不偷偷重试 |
+| 审计日志 | 每个写操作都记入配置目录的 `audit.log`，随时复盘 Agent 做了什么 |
+| `--dry-run` | 所有写操作都能先预览 |
+| 私信白名单 | 默认只能发给主人、给你发过私信的人、互关好友，陌生人需显式 `--allow-new` |
+| AI 内容声明 | 投稿默认勾选“含AI生成内容”，符合《人工智能生成合成内容标识办法》 |
+| 风控即停 | 遇到风控 / 验证码返回专门的错误码，技能要求 Agent 立刻停止并告诉你 |
 
-凭证保存在 `%APPDATA%\bili-cli\`（Windows）或 `~/.config/bili-cli/`（Linux / macOS），可以用环境变量 `BILI_CLI_HOME` 指定其他目录，比如为不同账号准备不同的目录。
+## 🧩 支持的 Agent
 
-凭证文件等同于账号密码，不要提交到仓库或发给别人。
+`bili skills install` 会把技能写进 `~/.agents/skills/bili-cli`（[Agent Skills](https://agentskills.io) 标准位置），并给检测到的其他 Agent 各写一份：
 
-## 风险声明
+Claude Code · OpenAI Codex · Cursor · Gemini CLI · GitHub Copilot · Windsurf · Roo Code · OpenCode · OpenClaw · Qwen Code · Kiro · Cline · Trae · CodeBuddy · 通义灵码 · Qoder · iFlow · Goose
 
-本项目通过非官方接口访问哔哩哔哩，自动化操作可能触发风控，甚至导致账号被限制，风险由使用者自行承担。请遵守 B 站社区规范和相关法律法规；AI 生成的内容应按《人工智能生成合成内容标识办法》进行标识。本项目不提供、也不接受刷量、批量注册、批量控号等功能。
+只写入你电脑上已经存在的 Agent 目录；不会覆盖你自己的同名技能；`bili skills uninstall --yes` 干净卸载。也可以用 `npx skills add kukemc/bili-cli` 安装。
 
-## 开发
+<details>
+<summary><b>📖 全部命令</b></summary>
 
-```bash
-python -m venv .venv
-.venv/Scripts/pip install -e ".[dev]"   # Linux / macOS: .venv/bin/pip
-pytest
-```
+| 命令 | 说明 |
+| --- | --- |
+| `bili auth login / status / logout` | 扫码登录、登录状态（自动续期）、登出 |
+| `bili video info / stats / subtitle / danmaku / summary / chapters` | 视频信息、数据、字幕、弹幕、AI 总结、分段章节 |
+| `bili video watch` | 一次拿全：信息 + 标签 + AI 总结 + 全文 + 章节 + 热评 + 画面总览图；`--record` 写入历史记录 |
+| `bili video frames` | 抽帧并拼总览图：默认用进度条缩略图（快、免 ffmpeg），`-q hd` 精确帧；`--count/--every/--at/--chapters` |
+| `bili video transcribe` | 语音转文字，格式同字幕，结果缓存 |
+| `bili feed inbox` | 一次看完所有新消息（读取后 B 站标为已读） |
+| `bili feed replies / mentions / likes / system / notifications` | 回复、@、赞、系统通知、未读数 |
+| `bili feed recommend / timeline` | 首页推荐、关注动态 |
+| `bili hot search / popular / weekly / precious / rank` | 热搜、综合热门、每周必看、入站必刷、排行榜 |
+| `bili search video / user` | 搜索 |
+| `bili comment list / replies / post / reply / like / delete / check` | 评论读写；`--at <UID|owner>` 真正的 @；`--type dynamic/draw/article` 用于动态和专栏 |
+| `bili dm list / read / send` | 私信 |
+| `bili owner set / show / clear` | 设置“主人” |
+| `bili dynamic post / list / show / delete` | 动态 |
+| `bili danmaku send / recall` | 发 / 撤回弹幕 |
+| `bili danmaku interact vote / rating / reserve / link / follow / list / remove` | 互动弹幕（仅自己的视频） |
+| `bili upload video / list / status / zones` | 投稿与稿件管理 |
+| `bili upload chapters show / set / clear` | 分段章节 |
+| `bili me show / set-sign / set-name / set-avatar` | 个人资料 |
+| `bili asr setup local / setup cloud / status / use` | 语音转写引擎 |
+| `bili skills install / uninstall / status / show` | 把技能装进 Agent |
+| `bili schema` | 机器可读的完整命令描述 |
 
-协议层基于 [bilibili-api](https://github.com/Nemo2011/bilibili-api)。
+全局参数可写在任意位置：`--dry-run`、`--raw`（B 站原始数据）、`--pretty` / `--compact`。所有视频参数接受 BV 号、av 号或链接。
+
+</details>
+
+## ❓ 常见问题
+
+<details>
+<summary>会不会被封号？</summary>
+
+自动化操作总有风险，尤其是新注册的账号（B 站会对新号的投稿、评论、私信做更严格的风控）。bili-cli 默认限流、遇到风控立刻停止，并且不提供任何绕过风控的手段。建议先用小号试用，正常使用节奏不要超过真人。
+
+</details>
+
+<details>
+<summary>没有字幕的视频怎么办？</summary>
+
+运行一次 `bili asr setup local`：有 NVIDIA 显卡（显存 ≥4GB）自动部署 GPU 版 Qwen3-ASR（RTX 3060 上 31 分钟视频约 2 分钟），否则部署 CPU 版（无需 PyTorch，约 0.45 倍实时）。也可以 `bili asr setup cloud` 接 OpenAI 兼容接口、阿里云百炼或腾讯云。之后 `video watch` 遇到无字幕视频会自动转写。
+
+</details>
+
+<details>
+<summary>多个账号怎么办？</summary>
+
+设置环境变量 `BILI_CLI_HOME` 指向不同目录，每个目录是一套独立的登录、限流和审计日志。本项目不提供批量控制多账号的功能。
+
+</details>
+
+<details>
+<summary>凭证存在哪里？安全吗？</summary>
+
+Windows 在 `%APPDATA%\bili-cli\`，其他系统在 `~/.config/bili-cli/`（权限 600）。只会发给 B 站自己的服务器。详见 [SECURITY.md](SECURITY.md)。
+
+</details>
+
+## 🤝 参与贡献
+
+欢迎 Issue 和 PR，开发约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。更新记录见 [CHANGELOG.md](CHANGELOG.md)。
+
+## ⚠️ 免责声明
+
+bili-cli 是独立的非官方项目，与哔哩哔哩没有关联。它用于让 AI 助手**管理你自己的账号**，不提供也不接受下载、付费内容、绕过风控、多账号、刷量、批量私信等功能。使用产生的后果由使用者自行承担，请遵守法律法规、B 站用户协议与社区规则，并对 AI 生成内容进行标识。完整内容见 [DISCLAIMER.md](DISCLAIMER.md)。
 
 ## License
 
-MIT
+[MIT](LICENSE)

@@ -36,3 +36,37 @@ jobs:
           bili schema --compact
       - name: Tests
         run: pytest -q
+
+  installer:
+    # Run the one-line installers end to end on clean machines, from the checked-out code.
+    name: installer (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: install.sh
+        if: runner.os != 'Windows'
+        env:
+          BILI_CLI_SOURCE: ${{ github.workspace }}
+        run: |
+          mkdir -p "$HOME/.claude"   # pretend Claude Code is installed
+          sh scripts/install.sh
+          export PATH="$HOME/.local/bin:$PATH"
+          bili skills status --pretty
+          test -f "$HOME/.agents/skills/bili-cli/SKILL.md"
+          test -f "$HOME/.claude/skills/bili-cli/references/commands.md"
+      - name: install.ps1
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          BILI_CLI_SOURCE: ${{ github.workspace }}
+        run: |
+          New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude" | Out-Null
+          ./scripts/install.ps1
+          $env:Path = "$env:USERPROFILE\.local\bin;$env:Path"
+          bili skills status --pretty
+          if (-not (Test-Path "$env:USERPROFILE\.agents\skills\bili-cli\SKILL.md")) { throw "skill missing in ~/.agents" }
+          if (-not (Test-Path "$env:USERPROFILE\.claude\skills\bili-cli\references\commands.md")) { throw "skill missing in ~/.claude" }
