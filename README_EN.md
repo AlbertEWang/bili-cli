@@ -59,6 +59,17 @@ Requires Python 3.10+. ffmpeg is optional (HD frames, transcription, uploads wit
 | **Speech-to-text**: one-command local Qwen3-ASR (GPU auto-detected; a 31-min video in ~2 min on an RTX 3060) or cloud engines | `bili asr setup local` |
 | **Agent integration**: install the skill into all local agents | `bili skills install --yes` |
 
+## MCP
+
+For clients that cannot run shell commands (Claude Desktop, Cherry Studio, …):
+
+```bash
+uv tool install --force "bili-cli[mcp] @ git+https://github.com/kukemc/bili-cli"
+bili mcp install --yes    # registers in Claude Desktop / Claude Code / Cursor / VS Code / Codex / Gemini CLI (backs up configs first)
+```
+
+17 tools (inbox, watch_video, search, trending, comments, DMs, dynamics, …) plus `run_bili` for any other command. Write tools are annotated as non-read-only so clients can ask for approval. Manual config: command `bili mcp serve`.
+
 ## Built for agents
 
 - **One command, one JSON.** `{"ok": true, "data": …}` or `{"ok": false, "error": {"code", "message", "hint"}}` with a non-zero exit code; `hint` says what to do next.

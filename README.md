@@ -134,6 +134,18 @@ Claude Code · OpenAI Codex · Cursor · Gemini CLI · GitHub Copilot · Windsur
 
 只写入你电脑上已经存在的 Agent 目录；不会覆盖你自己的同名技能；`bili skills uninstall --yes` 干净卸载。也可以用 `npx skills add kukemc/bili-cli` 安装。
 
+### MCP（给不能执行命令的客户端）
+
+Claude Desktop、Cherry Studio 等只支持 MCP 的客户端，可以用 MCP 模式：
+
+```bash
+uv tool install --force "bili-cli[mcp] @ git+https://github.com/kukemc/bili-cli"
+bili mcp install            # 预览：检测到哪些客户端（Claude Desktop、Claude Code、Cursor、VS Code、Codex、Gemini CLI）
+bili mcp install --yes      # 写入配置（先备份为 .bak，只增改 bili-cli 自己的条目）
+```
+
+提供 17 个工具：收件箱、看视频、搜索、推荐、热门、评论、回复、私信、动态等，外加一个可以调用任意命令的 `run_bili`。写操作的工具标记为非只读，支持的客户端会先征求你的同意。手动配置时，命令是 `bili mcp serve`。
+
 <details>
 <summary><b>📖 全部命令</b></summary>
 
@@ -160,6 +172,7 @@ Claude Code · OpenAI Codex · Cursor · Gemini CLI · GitHub Copilot · Windsur
 | `bili me show / set-sign / set-name / set-avatar` | 个人资料 |
 | `bili asr setup local / setup cloud / status / use` | 语音转写引擎 |
 | `bili skills install / uninstall / status / show` | 把技能装进 Agent |
+| `bili mcp serve / install / uninstall` | MCP 服务与客户端配置 |
 | `bili schema` | 机器可读的完整命令描述 |
 
 全局参数可写在任意位置：`--dry-run`、`--raw`（B 站原始数据）、`--pretty` / `--compact`。所有视频参数接受 BV 号、av 号或链接。

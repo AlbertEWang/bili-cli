@@ -4,10 +4,10 @@ updates:
     directory: /
     schedule:
       interval: monthly
+  # Python deps use lower bounds on purpose (wider compatibility for users), so no
+  # routine "raise the minimum" PRs; GitHub security updates still open PRs when needed.
   - package-ecosystem: pip
     directory: /
     schedule:
       interval: monthly
-    ignore:
-      # upstream archived in 2026-07; pinned on purpose
-      - dependency-name: bilibili-api-python
+    open-pull-requests-limit: 0
