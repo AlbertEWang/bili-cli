@@ -1,0 +1,320 @@
+"""bili comment: read and interact with comments on videos, dynamics and articles."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any, Optional
+
+import typer
+from bilibili_api import comment, video
+
+from .. import config, guard, output
+from ..errors import BiliError
+from ..runtime import iso_time, parse_video_id, read_text, run
+
+app = typer.Typer(help="评论：读取、发表、回复、点赞、删除（视频 / 动态 / 专栏）。", no_args_is_help=True)
+
+TARGET_ARG = typer.Argument(
+    ..., help="评论区所在对象：视频填 BV 号 / av 号 / 链接；其他类型填评论区 ID（oid）。"
+)
+RPID_ARG = typer.Argument(..., help="评论 ID（rpid）。")
+FILE_OPT = typer.Option(None, "--file", "-f", help="从文件读取正文，`-` 表示 stdin。")
+TYPE_OPT = typer.Option(
+    "video", "--type", "-t", help="评论区类型：video / dynamic（纯文字动态）/ draw（图文动态）/ article。"
+)
+
+RESOURCE_TYPES = {
+    "video": comment.CommentResourceType.VIDEO,
+    "dynamic": comment.CommentResourceType.DYNAMIC,
+    "draw": comment.CommentResourceType.DYNAMIC_DRAW,
+    "article": comment.CommentResourceType.ARTICLE,
+}
+# Bilibili's numeric comment-area types, as seen in notifications (business_id).
+TYPE_NAMES = {t.value: name for name, t in RESOURCE_TYPES.items()}
+
+
+def resolve_target(target: str, type_: str) -> tuple[int, comment.CommentResourceType]:
+    """Return (oid, resource type) for a comment area."""
+    if type_ not in RESOURCE_TYPES:
+        raise BiliError("invalid_argument", f"--type 只能是 {' / '.join(RESOURCE_TYPES)} 之一。")
+    if type_ == "video":
+        ids = parse_video_id(target)
+        oid = ids["aid"] if "aid" in ids else video.Video(bvid=ids["bvid"]).get_aid()
+        return oid, RESOURCE_TYPES[type_]
+    if not target.isdigit():
+        raise BiliError("invalid_argument", f"--type {type_} 时，目标必须是数字形式的评论区 ID（oid），收到 {target!r}。")
+    return int(target), RESOURCE_TYPES[type_]
+
+
+def _reply(r: dict[str, Any], with_children: bool = True) -> dict[str, Any]:
+    member = r.get("member") or {}
+    item: dict[str, Any] = {
+        "rpid": r.get("rpid"),
+        "root": r.get("root") or None,
+        "parent": r.get("parent") or None,
+        "user": {"mid": r.get("mid"), "name": member.get("uname")},
+        "content": (r.get("content") or {}).get("message"),
+        "like": r.get("like"),
+        "reply_count": r.get("rcount"),
+        "time": iso_time(r.get("ctime")),
+    }
+    if with_children and r.get("replies"):
+        item["replies_preview"] = [_reply(c, with_children=False) for c in r["replies"]]
+    return item
+
+
+@app.command("list")
+def list_(
+    target: str = TARGET_ARG,
+    type_: str = TYPE_OPT,
+    sort: str = typer.Option("hot", "--sort", help="排序：hot（按点赞）或 time（按时间）。"),
+    page: int = typer.Option(1, "--page", min=1, help="页码，从 1 开始；第 2 页起需要登录。"),
+) -> None:
+    """列出评论（每页约 20 条），附带每条评论的前几条楼中楼。"""
+
+    async def body():
+        if sort not in ("hot", "time"):
+            raise BiliError("invalid_argument", "--sort 只能是 hot 或 time。")
+        order = comment.OrderType.LIKE if sort == "hot" else comment.OrderType.TIME
+        cred = config.load_credential()
+        if page > 1 and cred is None:
+            raise BiliError("not_logged_in", "获取第 2 页及以后的评论需要登录。")
+        oid, rtype = resolve_target(target, type_)
+        data = await comment.get_comments(oid, rtype, page_index=page, order=order, credential=cred)
+        if output.settings.raw:
+            return data
+        pg = data.get("page") or {}
+        return {
+            "oid": oid,
+            "type": type_,
+            "page": page,
+            "total": pg.get("count") or pg.get("acount"),
+            "items": [_reply(r) for r in data.get("replies") or []],
+        }
+
+    run(body)
+
+
+@app.command()
+def replies(
+    target: str = TARGET_ARG,
+    rpid: int = RPID_ARG,
+    type_: str = TYPE_OPT,
+    page: int = typer.Option(1, "--page", min=1, help="页码，从 1 开始。"),
+    size: int = typer.Option(20, "--size", min=1, max=20, help="每页条数，最大 20。"),
+) -> None:
+    """列出某条评论下的楼中楼回复。"""
+
+    async def body():
+        oid, rtype = resolve_target(target, type_)
+        c = comment.Comment(oid, rtype, rpid, credential=config.optional_credential())
+        data = await c.get_sub_comments(page_index=page, page_size=size)
+        if output.settings.raw:
+            return data
+        pg = data.get("page") or {}
+        return {
+            "root": _reply(data.get("root") or {}, with_children=False) if data.get("root") else None,
+            "page": page,
+            "total": pg.get("count"),
+            "items": [_reply(r, with_children=False) for r in data.get("replies") or []],
+        }
+
+    run(body)
+
+
+AT_OPT = typer.Option(
+    [], "--at", help="要 @ 的人：UID，或 owner（主人，见 `bili owner set`）。可重复传入，会自动在正文开头加上 @昵称。"
+)
+MAX_MENTIONS = 3
+
+
+async def _mentions(values: list[str]) -> dict[str, int]:
+    """Resolve --at values to {exact current nickname: mid}; the web client sends this as at_name_to_mid."""
+    from .owner import resolve_user
+
+    if len(values) > MAX_MENTIONS:
+        raise BiliError("invalid_argument", f"一条评论最多 @ {MAX_MENTIONS} 个人。")
+    out: dict[str, int] = {}
+    for v in values:
+        if v == "owner":
+            owner = config.load_owner()
+            if not owner:
+                raise BiliError("invalid_argument", "还没有设置主人。", hint="运行 `bili owner set <UID>`。")
+            mid = int(owner["mid"])
+        elif v.isdigit():
+            mid = int(v)
+        else:
+            raise BiliError("invalid_argument", f"--at 需要 UID 或 owner，收到 {v!r}。")
+        name = (await resolve_user(mid)).get("name")  # nicknames change; always use the current one
+        if not name:
+            raise BiliError("not_found", f"找不到 UID {mid} 对应的用户。")
+        out[name] = mid
+    return out
+
+
+async def _send(
+    target: str, type_: str, text: str, root: int | None, parent: int | None, at: list[str] | None = None
+) -> dict[str, Any]:
+    from bilibili_api.comment import API as COMMENT_API
+    from bilibili_api.utils.network import Api
+
+    cred = config.require_credential()
+    oid, rtype = resolve_target(target, type_)
+    # Replying to a root comment: the web client sends parent=root too.
+    if root is not None and parent is None:
+        parent = root
+    mentions = await _mentions(at or [])
+    # B 站 only turns "@name " into a real mention (with notification) when the
+    # text contains it *and* at_name_to_mid maps the name to the UID.
+    prefix = "".join(f"@{name} " for name in mentions if f"@{name}" not in text)
+    message = prefix + text
+    params = {"oid": oid, "type": type_, "text": message, "root": root, "parent": parent, "mentions": mentions or None}
+    if output.settings.dry_run:
+        return {"dry_run": True, "action": "comment.send", "params": params}
+    data: dict[str, Any] = {
+        "oid": oid, "type": rtype.value, "message": message, "plat": 1,
+        "statistics": {"appId": 100, "platform": 5}, "gaia_source": "main_web",
+    }
+    if root is not None:
+        data["root"], data["parent"] = root, parent
+    if mentions:
+        data["at_name_to_mid"] = json.dumps(mentions, ensure_ascii=False)
+    guard.check("comment")
+    res = await Api(**COMMENT_API["comment"]["send"], credential=cred).update_data(**data).result
+    guard.record("comment", params, {"rpid": res.get("rpid")})
+    out: dict[str, Any] = {
+        "rpid": res.get("rpid"),
+        "oid": oid,
+        "type": type_,
+        "root": root,
+        "parent": parent,
+        "content": message,
+        "success_toast": res.get("success_toast"),
+    }
+    if mentions:
+        members = {int(m.get("mid")) for m in ((res.get("reply") or {}).get("content") or {}).get("members") or [] if m.get("mid")}
+        out["mentions"] = [{"name": n, "mid": m, "resolved": m in members} for n, m in mentions.items()]
+    out["next"] = f"新号或敏感内容可能进审核，用 `bili comment check {target} {res.get('rpid')}{f' --root {root}' if root else ''}{'' if type_ == 'video' else f' --type {type_}'}` 确认别人能否看到。"
+    return out
+
+
+@app.command()
+def post(
+    target: str = TARGET_ARG,
+    text: Optional[str] = typer.Argument(None, help="评论正文；也可用 --file。"),
+    type_: str = TYPE_OPT,
+    file: Optional[Path] = FILE_OPT,
+    at: list[str] = AT_OPT,
+) -> None:
+    """发表一条评论，可用 --at 真正 @ 某人（对方会收到提醒）。"""
+
+    async def body():
+        return await _send(target, type_, read_text(text, file), None, None, at)
+
+    run(body)
+
+
+@app.command()
+def check(
+    target: str = TARGET_ARG,
+    rpid: int = RPID_ARG,
+    root: Optional[int] = typer.Option(None, "--root", help="楼中楼回复所在的根评论 ID。"),
+    type_: str = TYPE_OPT,
+) -> None:
+    """检查自己的评论状态：是否在列表中、是否被折叠 / 隐藏。新号或敏感内容常被折叠或进审核，此时 @ 也不会发出提醒。"""
+
+    async def body():
+        # B 站 no longer shows comments to anonymous visitors, so the check reads the
+        # logged-in list and relies on the status fields B 站 attaches to each comment.
+        cred = config.require_credential()
+        oid, rtype = resolve_target(target, type_)
+        if root:
+            replies = []
+            for p in (1, 2):
+                replies += (await comment.Comment(oid, rtype, root, credential=cred).get_sub_comments(page_index=p, page_size=20)).get("replies") or []
+        else:
+            replies = (await comment.get_comments_lazy(oid, rtype, order=comment.OrderType.TIME, credential=cred)).get("replies") or []
+        r = next((x for x in replies if x.get("rpid") == rpid), None)
+        if r is None:
+            return {
+                "rpid": rpid,
+                "found": False,
+                "visible": False,
+                "note": "最新评论中找不到：可能已被删除、进入审核，或已被更新的评论挤到后面。",
+            }
+        folded = bool((r.get("folder") or {}).get("is_folded"))
+        hidden = bool(r.get("invisible")) or r.get("state") not in (0, None)
+        return {
+            "rpid": rpid,
+            "found": True,
+            "visible": not (folded or hidden),
+            "folded": folded,
+            "hidden": hidden,
+            "state": r.get("state"),
+            "note": "折叠 / 隐藏的评论别人通常看不到，@ 也可能不会发出提醒。" if (folded or hidden) else "从你自己的视角看评论正常显示。",
+        }
+
+    run(body)
+
+
+@app.command()
+def reply(
+    target: str = TARGET_ARG,
+    rpid: int = typer.Argument(..., help="要回复的评论 ID。"),
+    text: Optional[str] = typer.Argument(None, help="回复正文；也可用 --file。"),
+    root: Optional[int] = typer.Option(
+        None, "--root", help="当回复的是楼中楼时，填它所在的根评论 ID（即该回复的 root 字段）。"
+    ),
+    type_: str = TYPE_OPT,
+    file: Optional[Path] = FILE_OPT,
+    at: list[str] = AT_OPT,
+) -> None:
+    """回复一条评论。回复根评论直接传 rpid；回复楼中楼时额外传 --root。"""
+
+    async def body():
+        content = read_text(text, file)
+        if root is None or root == rpid:
+            return await _send(target, type_, content, rpid, None, at)
+        return await _send(target, type_, content, root, rpid, at)
+
+    run(body)
+
+
+@app.command()
+def like(
+    target: str = TARGET_ARG,
+    rpid: int = RPID_ARG,
+    type_: str = TYPE_OPT,
+    undo: bool = typer.Option(False, "--undo", help="取消点赞。"),
+) -> None:
+    """给评论点赞（或用 --undo 取消）。"""
+
+    async def body():
+        cred = config.require_credential()
+        oid, rtype = resolve_target(target, type_)
+        if output.settings.dry_run:
+            return {"dry_run": True, "action": "comment.like", "params": {"oid": oid, "type": type_, "rpid": rpid, "like": not undo}}
+        guard.check("like")
+        await comment.Comment(oid, rtype, rpid, credential=cred).like(status=not undo)
+        guard.record("like", {"oid": oid, "type": type_, "rpid": rpid, "like": not undo}, "ok")
+        return {"rpid": rpid, "liked": not undo}
+
+    run(body)
+
+
+@app.command()
+def delete(target: str = TARGET_ARG, rpid: int = RPID_ARG, type_: str = TYPE_OPT) -> None:
+    """删除自己发表的评论（或自己作品下的评论）。"""
+
+    async def body():
+        cred = config.require_credential()
+        oid, rtype = resolve_target(target, type_)
+        if output.settings.dry_run:
+            return {"dry_run": True, "action": "comment.delete", "params": {"oid": oid, "type": type_, "rpid": rpid}}
+        guard.check("delete")
+        await comment.Comment(oid, rtype, rpid, credential=cred).delete()
+        guard.record("delete", {"oid": oid, "type": type_, "rpid": rpid}, "ok")
+        return {"rpid": rpid, "deleted": True}
+
+    run(body)
