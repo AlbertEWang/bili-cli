@@ -1,6 +1,7 @@
 <!doctype html>
 <!-- Source of assets/origin.png (1200x650). Render: shot.py assets/origin.html assets/origin.png 1200 650 2
-     The fish is an original drawing, not any company's logo. -->
+     Avatars are read from assets/avatars/{fish,owner}.png, which are third-party pictures
+     kept out of git (see .gitignore); put them back before re-rendering. -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -34,7 +35,8 @@
   .bubble { max-width: 640px; padding: 14px 20px; border-radius: 20px; font-size: 22px; line-height: 1.55; }
   .fish .bubble { background: #252A42; border-bottom-left-radius: 6px; }
   .me .bubble { background: linear-gradient(135deg, #FF5C93, #A46BFF); border-bottom-right-radius: 6px; }
-  .me .avatar { border-radius: 50%; background: linear-gradient(135deg, #FFB86B, #FF7AA8); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; color: #fff; }
+  img.avatar { border-radius: 50%; object-fit: cover; background: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.14); }
+  .me img.avatar { box-shadow: 0 0 0 3px rgba(255,122,168,.55); }
   .card {
     display: flex; gap: 14px; align-items: center; padding: 12px 16px; border-radius: 14px;
     background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); margin-top: 10px;
@@ -54,31 +56,9 @@
 </style>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute">
-  <defs>
-    <!-- an original chubby cartoon fish -->
-    <symbol id="fish" viewBox="0 0 120 120">
-      <defs>
-        <linearGradient id="fb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6FD3FF"/><stop offset="1" stop-color="#2F8DF2"/></linearGradient>
-      </defs>
-      <circle cx="60" cy="60" r="58" fill="#1C2340"/>
-      <path d="M92 60 L114 42 Q108 60 114 78 Z" fill="#3A9BF5"/>
-      <ellipse cx="56" cy="62" rx="40" ry="34" fill="url(#fb)"/>
-      <ellipse cx="50" cy="76" rx="26" ry="14" fill="#BFEFFF" opacity=".55"/>
-      <path d="M50 30 Q62 18 74 30" fill="#3A9BF5"/>
-      <circle cx="40" cy="56" r="9" fill="#0E1328"/><circle cx="37" cy="53" r="3.4" fill="#fff"/>
-      <circle cx="64" cy="56" r="9" fill="#0E1328"/><circle cx="61" cy="53" r="3.4" fill="#fff"/>
-      <ellipse cx="32" cy="70" rx="6" ry="3.6" fill="#FF8FB4" opacity=".75"/>
-      <ellipse cx="73" cy="70" rx="6" ry="3.6" fill="#FF8FB4" opacity=".75"/>
-      <path d="M47 71 Q52 76 57 71" fill="none" stroke="#0E1328" stroke-width="3" stroke-linecap="round"/>
-      <path d="M80 70 Q90 66 88 78 Q82 76 80 70 Z" fill="#3A9BF5"/>
-    </symbol>
-  </defs>
-</svg>
-
 <div class="window">
   <div class="head">
-    <svg class="avatar"><use href="#fish"/></svg>
+    <img class="avatar" src="avatars/fish.png" alt="">
     <div>
       <div class="who">大肥鱼</div>
       <div class="status">正在刷 B 站…</div>
@@ -88,7 +68,7 @@
 
   <div class="chat">
     <div class="row fish">
-      <svg class="avatar"><use href="#fish"/></svg>
+      <img class="avatar" src="avatars/fish.png" alt="">
       <div>
         <div class="bubble">主人，我刚刷到你的 B 站主页……</div>
         <div class="card">
@@ -98,12 +78,12 @@
       </div>
     </div>
     <div class="row fish">
-      <svg class="avatar"><use href="#fish"/></svg>
+      <img class="avatar" src="avatars/fish.png" alt="">
       <div class="bubble">你的粉丝和播放量好多呀。<br>要是我也能像你一样，成为一名 UP 主就好了 🥺</div>
     </div>
     <div class="row me">
       <div class="bubble">……那我给你造一个吧。</div>
-      <div class="avatar">主</div>
+      <img class="avatar" src="avatars/owner.png" alt="">
     </div>
 
     <div class="divider">

@@ -10,3 +10,6 @@ build/
 credential.json
 pending_login.json
 login_qrcode.png
+
+# third-party avatar pictures used to render assets/origin.png
+assets/avatars/
