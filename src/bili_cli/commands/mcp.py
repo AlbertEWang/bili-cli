@@ -142,7 +142,7 @@ def serve() -> None:
         output.fail(BiliError(
             "invalid_argument",
             "MCP 模式需要额外安装 mcp 依赖。",
-            hint='重新安装：uv tool install --force "bili-cli[mcp] @ git+https://github.com/kukemc/bili-cli"（或 pip install "mcp>=2.3"）',
+            hint='重新安装：uv tool install --force "bili-agent[mcp]"（或 pip install "mcp>=2.3"）',
         ))
     _serve()
 

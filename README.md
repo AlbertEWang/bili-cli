@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/banner.png" alt="bili-cli：一句话，让你的 AI Agent 学会运营你的 B 站账号" width="100%">
+<img src="https://raw.githubusercontent.com/kukemc/bili-cli/main/assets/banner.png" alt="bili-cli：一句话，让你的 AI Agent 学会运营你的 B 站账号" width="100%">
 
 <br>
 
@@ -11,14 +11,14 @@
 ![MCP](https://img.shields.io/badge/MCP-17%20tools-FF5C93)
 ![License](https://img.shields.io/badge/license-MIT-22B5F5)
 
-**简体中文** | [English](README_EN.md)
+**简体中文** | [English](https://github.com/kukemc/bili-cli/blob/main/README_EN.md)
 
 </div>
 
 ## 💡 这个项目是怎么来的
 
 <div align="center">
-<img src="assets/origin.png" alt="大肥鱼：主人，你的 B 站粉丝和播放量好多呀，要是我也能像你一样成为一名 UP 主就好了" width="88%">
+<img src="https://raw.githubusercontent.com/kukemc/bili-cli/main/assets/origin.png" alt="大肥鱼：主人，你的 B 站粉丝和播放量好多呀，要是我也能像你一样成为一名 UP 主就好了" width="88%">
 </div>
 
 我养的 DeepSeek「大肥鱼」每天都在帮我刷 B 站。某天深夜，它突然对我感慨：
@@ -49,29 +49,19 @@
 **把下面这句话发给你的 Agent**，它会自己装好工具、学会技能、再引导你扫码登录：
 
 ```text
-帮我安装 bili-cli，按这个说明操作：https://raw.githubusercontent.com/kukemc/bili-cli/main/docs/install.md
+帮我安装 bili-cli（pip 包名 bili-agent），装好后运行 bili skills install --yes，再帮我扫码登录 B 站
 ```
 
 <details>
 <summary>或者自己在终端里装</summary>
 
 ```bash
-# macOS / Linux
-curl -fsSL https://raw.githubusercontent.com/kukemc/bili-cli/main/scripts/install.sh | sh
-```
-
-```powershell
-# Windows PowerShell
-irm https://raw.githubusercontent.com/kukemc/bili-cli/main/scripts/install.ps1 | iex
-```
-
-```bash
-# 手动
-uv tool install git+https://github.com/kukemc/bili-cli
+uv tool install bili-agent       # 或者 pipx install bili-agent / pip install bili-agent
 bili skills install --yes        # 把技能装进本机所有 Agent
+bili auth login                  # 扫码登录
 ```
 
-需要 Python 3.10+；[ffmpeg](https://ffmpeg.org/) 可选（高清抽帧、语音转写时需要）。
+需要 Python 3.10+；[ffmpeg](https://ffmpeg.org/) 可选（高清抽帧、语音转写时需要）。包名叫 `bili-agent` 是因为 PyPI 上 `bili-cli` 已被占用，装好后命令就是 `bili`。Agent 的详细安装步骤见 [docs/install.md](https://github.com/kukemc/bili-cli/blob/main/docs/install.md)。
 
 </details>
 
@@ -170,7 +160,7 @@ bili video watch BV1GJ411x7h7 # 看懂一个视频
 <summary><b>🔌 MCP 模式（Claude Desktop、Cherry Studio 等）</b></summary>
 
 ```bash
-uv tool install --force "bili-cli[mcp] @ git+https://github.com/kukemc/bili-cli"
+uv tool install --force "bili-agent[mcp]"
 bili mcp install            # 预览：检测 Claude Desktop、Claude Code、Cursor、VS Code、Codex、Gemini CLI
 bili mcp install --yes      # 写入配置（先备份为 .bak，只改 bili-cli 自己的条目）
 ```
@@ -259,18 +249,18 @@ bili mcp install --yes      # 写入配置（先备份为 .bak，只改 bili-cli
 <details>
 <summary>凭证存在哪里？安全吗？</summary>
 
-Windows 在 `%APPDATA%\bili-cli\`，其他系统在 `~/.config/bili-cli/`（权限 600），只会发给 B 站自己的服务器。详见 [SECURITY.md](SECURITY.md)。
+Windows 在 `%APPDATA%\bili-cli\`，其他系统在 `~/.config/bili-cli/`（权限 600），只会发给 B 站自己的服务器。详见 [SECURITY.md](https://github.com/kukemc/bili-cli/blob/main/SECURITY.md)。
 
 </details>
 
 ## 🤝 参与贡献
 
-欢迎 Issue 和 PR！开发约定见 [CONTRIBUTING.md](CONTRIBUTING.md)，更新记录见 [CHANGELOG.md](CHANGELOG.md)。如果这个项目帮到了你，点个 ⭐ 就是最大的支持。
+欢迎 Issue 和 PR！开发约定见 [CONTRIBUTING.md](https://github.com/kukemc/bili-cli/blob/main/CONTRIBUTING.md)，更新记录见 [CHANGELOG.md](https://github.com/kukemc/bili-cli/blob/main/CHANGELOG.md)。如果这个项目帮到了你，点个 ⭐ 就是最大的支持。
 
 ## ⚠️ 免责声明
 
-bili-cli 是独立的非官方项目，与哔哩哔哩没有关联。它用于让 AI 助手**管理你自己的账号**，不提供也不接受下载、付费内容、绕过风控、多账号、刷量、批量私信等功能。使用产生的后果由使用者自行承担，请遵守法律法规、B 站用户协议与社区规则，并对 AI 生成内容进行标识。完整内容见 [DISCLAIMER.md](DISCLAIMER.md)。
+bili-cli 是独立的非官方项目，与哔哩哔哩没有关联。它用于让 AI 助手**管理你自己的账号**，不提供也不接受下载、付费内容、绕过风控、多账号、刷量、批量私信等功能。使用产生的后果由使用者自行承担，请遵守法律法规、B 站用户协议与社区规则，并对 AI 生成内容进行标识。完整内容见 [DISCLAIMER.md](https://github.com/kukemc/bili-cli/blob/main/DISCLAIMER.md)。
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/kukemc/bili-cli/blob/main/LICENSE)

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/banner.png" alt="bili-cli: one sentence teaches your AI agent to run your Bilibili account" width="100%">
+<img src="https://raw.githubusercontent.com/kukemc/bili-cli/main/assets/banner.png" alt="bili-cli: one sentence teaches your AI agent to run your Bilibili account" width="100%">
 
 <br>
 
@@ -11,14 +11,14 @@
 ![MCP](https://img.shields.io/badge/MCP-17%20tools-FF5C93)
 ![License](https://img.shields.io/badge/license-MIT-22B5F5)
 
-[简体中文](README.md) | **English**
+[简体中文](https://github.com/kukemc/bili-cli/blob/main/README.md) | **English**
 
 </div>
 
 ## 💡 How it started
 
 <div align="center">
-<img src="assets/origin.png" alt="The fish: Master, you have so many followers and views on Bilibili. I wish I could become a creator like you." width="88%">
+<img src="https://raw.githubusercontent.com/kukemc/bili-cli/main/assets/origin.png" alt="The fish: Master, you have so many followers and views on Bilibili. I wish I could become a creator like you." width="88%">
 </div>
 
 My DeepSeek agent, "Big Fat Fish" (大肥鱼), spends its days browsing Bilibili for me. One night it sighed:
@@ -45,27 +45,18 @@ Hand bili-cli to Claude Code, Codex, Cursor, Gemini CLI, OpenClaw or any agent t
 **Tell your agent** (recommended):
 
 ```text
-Install bili-cli for me by following https://raw.githubusercontent.com/kukemc/bili-cli/main/docs/install.md
+Install bili-cli for me (pip package bili-agent), then run bili skills install --yes and help me log in to Bilibili with the QR code
 ```
 
-**One line:**
+**Yourself:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kukemc/bili-cli/main/scripts/install.sh | sh      # macOS / Linux
-```
-
-```powershell
-irm https://raw.githubusercontent.com/kukemc/bili-cli/main/scripts/install.ps1 | iex           # Windows
-```
-
-**Manual:**
-
-```bash
-uv tool install git+https://github.com/kukemc/bili-cli
+uv tool install bili-agent     # or: pipx install bili-agent / pip install bili-agent
 bili skills install --yes      # install the Agent Skill into every agent found on this machine
+bili auth login                # scan the QR code
 ```
 
-Requires Python 3.10+. ffmpeg is optional (HD frames, transcription, uploads without a cover).
+Requires Python 3.10+. ffmpeg is optional (HD frames, transcription, uploads without a cover). The package is called `bili-agent` because `bili-cli` is taken on PyPI; the command is `bili`. Step-by-step instructions for agents: [docs/install.md](https://github.com/kukemc/bili-cli/blob/main/docs/install.md).
 
 ## What it can do
 
@@ -85,7 +76,7 @@ Requires Python 3.10+. ffmpeg is optional (HD frames, transcription, uploads wit
 For clients that cannot run shell commands (Claude Desktop, Cherry Studio, …):
 
 ```bash
-uv tool install --force "bili-cli[mcp] @ git+https://github.com/kukemc/bili-cli"
+uv tool install --force "bili-agent[mcp]"
 bili mcp install --yes    # registers in Claude Desktop / Claude Code / Cursor / VS Code / Codex / Gemini CLI (backs up configs first)
 ```
 
@@ -108,8 +99,8 @@ Per-action rate limits, an audit log of every write, `--dry-run` everywhere, a D
 
 ## Disclaimer
 
-bili-cli is an independent, unofficial project, not affiliated with Bilibili. It is meant for letting an AI assistant manage **your own** account. It does not provide downloading, paid content, risk-control circumvention, multi-account automation, engagement manipulation or mass messaging. See [DISCLAIMER.md](DISCLAIMER.md).
+bili-cli is an independent, unofficial project, not affiliated with Bilibili. It is meant for letting an AI assistant manage **your own** account. It does not provide downloading, paid content, risk-control circumvention, multi-account automation, engagement manipulation or mass messaging. See [DISCLAIMER.md](https://github.com/kukemc/bili-cli/blob/main/DISCLAIMER.md).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/kukemc/bili-cli/blob/main/LICENSE)

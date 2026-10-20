@@ -4,7 +4,7 @@
 # into the AI agents found on this machine. Set $env:BILI_NO_SKILLS = "1" to skip that step.
 $ErrorActionPreference = "Stop"
 
-$Source = if ($env:BILI_CLI_SOURCE) { $env:BILI_CLI_SOURCE } else { "git+https://github.com/kukemc/bili-cli" }
+$Source = if ($env:BILI_CLI_SOURCE) { $env:BILI_CLI_SOURCE } else { "bili-agent" }
 
 function Say($msg) { Write-Host "==> $msg" -ForegroundColor Cyan }
 

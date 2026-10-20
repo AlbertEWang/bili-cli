@@ -35,10 +35,28 @@ jobs:
           text = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
           m = re.search(rf"^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## \[|\Z)", text, re.S | re.M)
           notes = m.group(1).strip() if m else f"bili-cli {version}"
-          notes += "\n\n**安装 / Install:** `uv tool install git+https://github.com/kukemc/bili-cli@" + os.environ["GITHUB_REF_NAME"] + "` 然后 `bili skills install --yes`"
+          notes += "\n\n**安装 / Install:** `uv tool install bili-agent==" + version + "` 然后 `bili skills install --yes`"
           pathlib.Path("notes.md").write_text(notes, encoding="utf-8")
           EOF
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" dist/* --title "bili-cli $GITHUB_REF_NAME" --notes-file notes.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  pypi:
+    # PyPI trusted publishing: project bili-agent, workflow release.yml, environment pypi
+    needs: release
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

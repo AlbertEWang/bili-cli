@@ -7,8 +7,8 @@ You are an AI agent and the user asked you to install bili-cli, a command-line t
 Pick the first option that works:
 
 ```bash
-uv tool install git+https://github.com/kukemc/bili-cli     # preferred
-pipx install git+https://github.com/kukemc/bili-cli         # if uv is missing
+uv tool install bili-agent     # preferred
+pipx install bili-agent         # if uv is missing
 ```
 
 If neither `uv` nor `pipx` exists, install uv first (`curl -LsSf https://astral.sh/uv/install.sh | sh`, or on Windows `irm https://astral.sh/uv/install.ps1 | iex`), then run the first command.

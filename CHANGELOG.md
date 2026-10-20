@@ -5,9 +5,10 @@
 ## [Unreleased]
 
 ### Added
+- 发布到 PyPI，包名 `bili-agent`（`bili-cli` 已被占用），安装只要 `uv tool install bili-agent`；命令仍是 `bili`。打 `v*` 标签后自动发布。
 - `bili skills install / uninstall / status / show`：把 Agent Skill 装进本机的 Claude Code、Codex、Cursor、Gemini CLI、Copilot、OpenClaw、Qwen Code 等 AI Agent（只写入已检测到的 Agent，不覆盖用户自己的同名技能）。
 - 一行安装脚本 `scripts/install.sh`、`scripts/install.ps1`，以及给 Agent 看的安装指南 `docs/install.md`。
-- MCP 模式：`bili mcp serve`（17 个工具，写操作带非只读标注，行为和护栏与命令行完全一致）；`bili mcp install / uninstall` 注册到 Claude Desktop、Claude Code、Cursor、VS Code、Codex、Gemini CLI（先备份，只改自己的条目）。安装 `bili-cli[mcp]`。
+- MCP 模式：`bili mcp serve`（17 个工具，写操作带非只读标注，行为和护栏与命令行完全一致）；`bili mcp install / uninstall` 注册到 Claude Desktop、Claude Code、Cursor、VS Code、Codex、Gemini CLI（先备份，只改自己的条目）。安装 `bili-agent[mcp]`。
 - `DISCLAIMER.md`、`SECURITY.md`、`CONTRIBUTING.md`。
 - `bili video like / coin / fav / triple / relation`、`bili me favs`：点赞、投币、收藏到指定收藏夹、一键三连、查看我和视频的关系。投币必须显式指定个数，本地每 24 小时最多 5 个；对没看过的视频操作会提示。
 - Logo、Banner，README 重写。

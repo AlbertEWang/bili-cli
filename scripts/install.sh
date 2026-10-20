@@ -5,7 +5,7 @@
 # into the AI agents found on this machine. Set BILI_NO_SKILLS=1 to skip that step.
 set -eu
 
-SOURCE="${BILI_CLI_SOURCE:-git+https://github.com/kukemc/bili-cli}"
+SOURCE="${BILI_CLI_SOURCE:-bili-agent}"
 
 say() { printf '\033[1;36m==>\033[0m %s\n' "$1"; }
 
