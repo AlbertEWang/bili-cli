@@ -63,6 +63,18 @@ def show() -> None:
     run(body)
 
 
+@app.command()
+def favs() -> None:
+    """我的收藏夹：ID、名称、视频数（`bili video fav --folder` 用）。"""
+
+    async def body():
+        from .video import _folders
+
+        return {"folders": await _folders(config.require_credential())}
+
+    run(body)
+
+
 @app.command("set-sign")
 def set_sign(sign: str = typer.Argument(..., help=f"新的个性签名，最多 {SIGN_MAX_LEN} 字；传空字符串可清空。")) -> None:
     """修改个性签名。"""

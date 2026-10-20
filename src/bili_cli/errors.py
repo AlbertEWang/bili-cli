@@ -41,6 +41,8 @@ BILI_CODE_MAP: dict[int, str] = {
     12035: "invalid_argument",  # 被 UP 主拉黑，无法评论
     12051: "risk_control",  # 重复评论 / 被判定为刷屏，必须停下
     21007: "invalid_argument",  # 私信内容过长
+    34002: "invalid_argument",  # UP 主不能给自己投币
+    34005: "invalid_argument",  # 该视频投币已达上限
     12022: "not_found",  # 评论已被删除
     62002: "not_found",  # 稿件不可见
     62004: "not_found",  # 稿件审核中

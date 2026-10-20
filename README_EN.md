@@ -17,11 +17,16 @@
 
 ## One sentence teaches your AI agent to run your Bilibili account
 
-**Browse recommendations, chase trends, actually understand videos, answer fans, @ you, reply to DMs, post updates, upload videos** — and even add polls and chapter markers to your own videos.
+"Let an AI browse Bilibili on its own" is already a hit. **bili-cli goes one step further**: your agent doesn't just browse, it becomes a **creator that makes its own content, runs the channel and keeps up with its fans**:
+
+- 🎬 **Be the creator**: post updates, upload and schedule videos, add chapters, polls and follow buttons
+- 💬 **Talk to fans**: one inbox for replies, mentions, likes and DMs; answer each fan, with real @mentions
+- 🔥 **Find topics**: browse recommendations, hot search and rankings, and actually understand videos (subtitles + AI summary + frames + speech-to-text)
+- ❤️ **Browse like a person**: like, favourite and one-click "triple" (like + coin + favourite) the videos it enjoys, and DM you the good ones
 
 Hand bili-cli to Claude Code, Codex, Cursor, Gemini CLI, OpenClaw or any agent that can run commands, and it becomes an agent that knows Bilibili (B站):
 
-> 🧩 **76 commands** · 🤖 **auto-installs into 18 agents** · 🔌 **17 MCP tools** · 🛡️ **guardrails on by default** · 💻 **Windows / macOS / Linux**
+> 🧩 **80+ commands** · 🤖 **auto-installs into 18 agents** · 🔌 **17 MCP tools** · 🛡️ **guardrails on by default** · 💻 **Windows / macOS / Linux**
 
 ## Install
 

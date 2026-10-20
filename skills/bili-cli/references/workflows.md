@@ -40,7 +40,20 @@ bili video watch <BV>
 - 看更多画面：`bili video frames <BV> --every 30`、`--chapters`、`-q hd`（精确帧，需 ffmpeg）
 - 想让推荐越来越懂这个账号：`bili video watch <BV> --record`（写一次历史记录，不刷播放量）
 
-## 4. 发表看法、@ 主人
+## 4. 点赞、收藏、三连
+
+```bash
+bili video relation <BV>                 # 我赞了没、投了几个币、收藏了没
+bili video like <BV>                     # 点赞；--undo 取消
+bili video fav <BV> --folder 学习         # 收藏到指定收藏夹（默认“默认收藏夹”）；--remove 取消
+bili me favs                             # 列出收藏夹
+bili video coin <BV> --coins 1           # 投币：必须指定 1 或 2；每个视频最多 2 个，每天本地最多 5 个
+bili video triple <BV>                   # 一键三连（点赞 + 投币 + 收藏）
+```
+
+只对真正看过、觉得好的视频这样做。投币花的是用户的真硬币，没有授权时先问用户。UP 主不能给自己的视频投币（返回 34002）。
+
+## 5. 发表看法、@ 主人
 
 ```bash
 bili owner set <主人UID>                         # 一次性设置
@@ -50,7 +63,7 @@ bili comment check <BV> <rpid>                   # 新号/敏感内容可能被�
 
 返回里的 `mentions[].resolved` 为 `true` 表示 B 站识别了这个 @。一条评论最多 @ 3 人。
 
-## 5. 私信
+## 6. 私信
 
 ```bash
 bili dm list --unread
@@ -60,7 +73,7 @@ bili dm send owner "今天看到一个你可能喜欢的视频：BV…"
 
 默认只能发给：主人、给你发过私信的人、互关好友。给陌生人发第一条私信需要 `--allow-new`，除非用户明确要求，不要用。最长 500 字，被拒绝不要重发。
 
-## 6. 发动态、投稿
+## 7. 发动态、投稿
 
 ```bash
 bili dynamic post "文字内容" --image cover.png
@@ -70,7 +83,7 @@ bili upload status <BV>        # 审核进度，以及 B 站实际记录的标�
 
 投稿默认带“含AI生成内容”声明；`--private` 仅自己可见，适合先试；`--schedule 2026-10-25T20:00` 定时发布（需 2 小时到 15 天后）。分区由标题自动预测，预测不准时用 `bili upload zones` 查好再 `--zone`。
 
-## 7. UP 主运营工具
+## 8. UP 主运营工具
 
 ```bash
 bili upload chapters set <BV> -c "0:00 开场" -c "1:30 正片"     # 进度条分段章节

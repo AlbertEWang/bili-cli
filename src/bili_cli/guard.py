@@ -27,8 +27,14 @@ LIMITS: dict[str, tuple[int, int]] = {
     # B 站 throttles interactive components harder than plain danmaku (36703 within a minute).
     "interact": (30, 20),
     "dm": (10, 20),
+    "video_like": (5, 60),
+    "favorite": (5, 60),
+    "coin": (10, 5),
 }
+# action -> maximum units per 24 hours (coins cost real money and cannot be taken back)
+DAILY_LIMITS: dict[str, int] = {"coin": 5}
 WINDOW_SECONDS = 3600
+DAY_SECONDS = 24 * 3600
 
 
 def _state_path():
@@ -46,13 +52,25 @@ def _disabled() -> bool:
     return os.environ.get("BILI_CLI_NO_RATE_LIMIT") == "1"
 
 
-def check(action: str) -> None:
-    """Raise rate_limited if `action` would exceed its local limit."""
+def check(action: str, units: int = 1) -> None:
+    """Raise rate_limited if `action` would exceed its local limit. `units` = how much one call uses (e.g. 2 coins)."""
     if _disabled():
         return
     min_interval, per_hour = LIMITS[action]
     now = time.time()
-    history = [t for t in _load().get(action, []) if now - t < WINDOW_SECONDS]
+    all_history = _load().get(action, [])
+    daily = DAILY_LIMITS.get(action)
+    if daily is not None:
+        today = [t for t in all_history if now - t < DAY_SECONDS]
+        if len(today) + units > daily:
+            wait = int(DAY_SECONDS - (now - today[0])) + 1 if today else 0
+            raise BiliError(
+                "rate_limited",
+                f"{action} 24 小时内最多 {daily} 次，已用 {len(today)} 次。",
+                hint=f"今天的额度用完了，约 {wait // 3600 + 1} 小时后恢复。",
+                detail={"action": action, "retry_after": wait, "limit": {"per_day": daily, "used": len(today)}},
+            )
+    history = [t for t in all_history if now - t < WINDOW_SECONDS]
     if history and now - history[-1] < min_interval:
         wait = int(min_interval - (now - history[-1])) + 1
         raise BiliError(
@@ -61,7 +79,7 @@ def check(action: str) -> None:
             hint=f"等待 {wait} 秒后重试。",
             detail={"action": action, "retry_after": wait, "limit": {"min_interval": min_interval, "per_hour": per_hour}},
         )
-    if len(history) >= per_hour:
+    if len(history) + units > per_hour:
         wait = int(WINDOW_SECONDS - (now - history[0])) + 1
         raise BiliError(
             "rate_limited",
@@ -71,11 +89,12 @@ def check(action: str) -> None:
         )
 
 
-def record(action: str, params: dict[str, Any], result: Any) -> None:
+def record(action: str, params: dict[str, Any], result: Any, units: int = 1) -> None:
     """Remember a successful write for rate limiting and append it to the audit log."""
     now = time.time()
     state = _load()
-    state[action] = [t for t in state.get(action, []) if now - t < WINDOW_SECONDS] + [now]
+    keep = DAY_SECONDS if action in DAILY_LIMITS else WINDOW_SECONDS
+    state[action] = [t for t in state.get(action, []) if now - t < keep] + [now] * units
     tmp = _state_path().with_suffix(".tmp")
     tmp.write_text(json.dumps(state), encoding="utf-8")
     os.replace(tmp, _state_path())
