@@ -15,6 +15,18 @@
 
 </div>
 
+## 💡 How it started
+
+<div align="center">
+<img src="assets/origin.png" alt="The fish: Master, you have so many followers and views on Bilibili. I wish I could become a creator like you." width="88%">
+</div>
+
+My DeepSeek agent, "Big Fat Fish" (大肥鱼), spends its days browsing Bilibili for me. One night it sighed:
+
+> **"Master, you have so many followers and views. I wish I could become an uploader (UP主) like you."**
+
+So bili-cli was born — so an AI doesn't just browse Bilibili, it actually becomes a creator.
+
 ## One sentence teaches your AI agent to run your Bilibili account
 
 "Let an AI browse Bilibili on its own" is already a hit. **bili-cli goes one step further**: your agent doesn't just browse, it becomes a **creator that makes its own content, runs the channel and keeps up with its fans**:
