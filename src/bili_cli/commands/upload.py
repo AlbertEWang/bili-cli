@@ -186,6 +186,9 @@ def video_(
     desc: Optional[str] = typer.Option(None, "--desc", help=f"简介，最多 {DESC_MAX} 字。"),
     desc_file: Optional[Path] = typer.Option(None, "--desc-file", help="从文件读取简介，`-` 表示 stdin。"),
     cover: Optional[Path] = typer.Option(None, "--cover", help="封面图片；不传则用 ffmpeg 从视频截取一帧。"),
+    cover43: Optional[Path] = typer.Option(
+        None, "--cover43", help="4:3 封面（手机端推荐流用这一张）；不传则由 B 站从横版封面处理。"
+    ),
     zone_id: Optional[int] = typer.Option(
         None, "--zone", help="新版分区 ID（见 `bili upload zones`）；不传则按标题自动预测，预测不一定准。"
     ),
@@ -211,6 +214,8 @@ def video_(
                 raise BiliError("invalid_argument", f"视频文件不存在：{f}")
         if cover is not None and not cover.is_file():
             raise BiliError("invalid_argument", f"封面文件不存在：{cover}")
+        if cover43 is not None and not cover43.is_file():
+            raise BiliError("invalid_argument", f"4:3 封面文件不存在：{cover43}")
         if not title.strip() or len(title) > TITLE_MAX:
             raise BiliError("invalid_argument", f"标题需为 1 到 {TITLE_MAX} 字。")
         tags = [t.strip() for t in tag if t.strip()]
@@ -288,6 +293,7 @@ def video_(
             "schedule": iso_time(dtime),
             "copyright": "repost" if repost else "original",
             "cover": str(cover) if cover else "auto (ffmpeg)",
+            "cover43": str(cover43) if cover43 else None,
         }
         if output.settings.dry_run:
             return {"dry_run": True, "action": "upload.video", "params": summary, "meta": meta}
@@ -295,6 +301,9 @@ def video_(
         guard.check("upload")
         await _preflight(cred, files[0])
         cover_path = cover or _extract_cover(files[0])
+        if cover43:
+            # same image endpoint as the main cover; the archive keeps it in a separate `cover43` field
+            meta["cover43"] = await vu.upload_cover(Picture.from_file(str(cover43)), cred)
         pages = [vu.VideoUploaderPage(path=str(f), title=f.stem if len(files) > 1 else title) for f in files]
         uploader = vu.VideoUploader(pages, meta, cred, cover=Picture.from_file(str(cover_path)), line=line_enum)
         if sys.stderr.isatty():

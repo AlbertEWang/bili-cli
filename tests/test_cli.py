@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 
@@ -103,3 +104,20 @@ def test_schema_lists_commands(tmp_path):
     commands = {c["command"] for c in out["data"]["commands"]}
     assert {"bili auth login", "bili video subtitle", "bili comment reply"} <= commands
     assert any(e["code"] == "risk_control" for e in out["data"]["errors"])
+
+
+def test_upload_rejects_missing_cover43(tmp_path):
+    # validation happens before any network call, so a dummy credential is enough
+    (tmp_path / "credential.json").write_text(json.dumps({"sessdata": "x", "bili_jct": "y"}), encoding="utf-8")
+    video = tmp_path / "v.mp4"
+    video.write_bytes(b"0")
+    env = {**os.environ, "BILI_CLI_HOME": str(tmp_path)}
+    proc = subprocess.run(
+        [sys.executable, "-m", "bili_cli.main", "upload", "video", str(video), "--title", "t", "--tag", "a",
+         "--cover43", str(tmp_path / "missing.png")],
+        capture_output=True, text=True, encoding="utf-8", env=env,
+    )
+    out = json.loads(proc.stdout)
+    assert proc.returncode != 0
+    assert out["error"]["code"] == "invalid_argument"
+    assert "4:3" in out["error"]["message"]

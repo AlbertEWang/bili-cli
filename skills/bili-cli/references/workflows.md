@@ -81,7 +81,7 @@ bili upload video demo.mp4 --title "标题" --tag AI --tag 教程 --desc-file de
 bili upload status <BV>        # 审核进度，以及 B 站实际记录的标签/分区/声明
 ```
 
-投稿默认带“含AI生成内容”声明；`--private` 仅自己可见，适合先试；`--schedule 2026-10-25T20:00` 定时发布（需 2 小时到 15 天后）。分区由标题自动预测，预测不准时用 `bili upload zones` 查好再 `--zone`。
+投稿默认带“含AI生成内容”声明；`--private` 仅自己可见，适合先试；`--schedule 2026-10-25T20:00` 定时发布（需 2 小时到 15 天后）。分区由标题自动预测，预测不准时用 `bili upload zones` 查好再 `--zone`。封面有两张：`--cover` 是横版（16:9），`--cover43` 是手机端推荐流用的 4:3 版，两张都给效果最好。
 
 ## 8. UP 主运营工具
 
