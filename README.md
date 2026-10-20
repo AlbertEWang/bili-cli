@@ -40,7 +40,7 @@
 | **运营** | — | 进度条章节、互动投票、三连按钮、下期预告，盯审核和数据 |
 | **汇报** | — | 有意思的发现**私信告诉主人**，评论里 @ 你 |
 
-把 bili-cli 交给 Claude Code、Codex、Cursor、Gemini CLI、OpenClaw 或任何能执行命令的 Agent，它就变成一个**真正会玩 B 站的 Agent**：
+把 bili-cli 交给 Claude Code、Codex、Cursor、Gemini CLI、OpenClaw、DeepSeek Harness 或任何能执行命令的 Agent，它就变成一个**真正会玩 B 站的 Agent**：
 
 > 🧩 **80+ 条命令** · 🤖 **自动装进 18 个 Agent** · 🔌 **17 个 MCP 工具** · 🛡️ **默认带安全护栏** · 💻 **Windows / macOS / Linux**
 
@@ -107,7 +107,7 @@ $ bili dm send owner "今天科技区第二名很有意思：有人造了一块�
 给自己的视频加**进度条分段章节**、**互动投票**、**评分弹幕**、**一键三连按钮**、**下期预告**、**关联视频卡片**，还能看投票结果和评分均分。
 
 ### 🧩 装进你所有的 Agent
-- `bili skills install`：自动检测并装进 **Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot、Windsurf、OpenCode、OpenClaw、Qwen Code、Kiro、Cline、Trae、CodeBuddy、通义灵码、Qoder、iFlow、Goose**…
+- `bili skills install`：自动检测并装进 **Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot、Windsurf、OpenCode、OpenClaw、Qwen Code、Kiro、Cline、Trae、CodeBuddy、通义灵码、Qoder、iFlow、Goose、DeepSeek Harness**…
 - `bili mcp install`：给 **Claude Desktop、Cherry Studio** 这类不能执行命令的客户端，提供 17 个 MCP 工具
 
 ## 🆚 为什么是 bili-cli
@@ -186,15 +186,16 @@ bili mcp install --yes      # 写入配置（先备份为 .bak，只改 bili-cli
 | `bili feed recommend / timeline` | 首页推荐、关注动态 |
 | `bili hot search / popular / weekly / precious / rank` | 热搜、综合热门、每周必看、入站必刷、排行榜 |
 | `bili search video / user` | 搜索 |
-| `bili comment list / replies / post / reply / like / delete / check` | 评论读写；`--at <UID|owner>` 真正的 @；`--type dynamic/draw/article` 用于动态和专栏 |
+| `bili user info / videos` | 任意用户的资料、粉丝数、投稿列表（按播放 / 收藏排序，按关键词筛系列） |
+| `bili comment list / replies / post / reply / like / delete / check / pin` | 评论读写、置顶自己作品下的评论；`--at <UID|owner>` 真正的 @；`--type dynamic/draw/article` 用于动态和专栏 |
 | `bili dm list / read / send` | 私信 |
 | `bili owner set / show / clear` | 设置“主人” |
 | `bili dynamic post / list / show / delete` | 动态 |
 | `bili danmaku send / recall` | 发 / 撤回弹幕 |
 | `bili danmaku interact vote / rating / reserve / link / follow / list / remove` | 互动弹幕（仅自己的视频） |
-| `bili upload video / list / status / zones` | 投稿与稿件管理 |
+| `bili upload video / edit / list / status / stats / zones` | 投稿、改稿、稿件管理、单稿数据（互动率、完播率） |
 | `bili upload chapters show / set / clear` | 分段章节 |
-| `bili me show / set-sign / set-name / set-avatar` | 个人资料 |
+| `bili me show / stats / set-sign / set-name / set-avatar` | 个人资料、创作中心数据 |
 | `bili asr setup local / setup cloud / status / use` | 语音转写引擎 |
 | `bili skills install / uninstall / status / show` | 把技能装进 Agent |
 | `bili mcp serve / install / uninstall` | MCP 服务与客户端配置 |

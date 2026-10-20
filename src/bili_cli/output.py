@@ -23,6 +23,7 @@ class Settings:
     pretty: bool | None = None  # None = indent only when stdout is a terminal
     raw: bool = False
     dry_run: bool = False
+    wait: bool = False  # sleep through short local rate limits instead of failing
 
 
 settings = Settings()

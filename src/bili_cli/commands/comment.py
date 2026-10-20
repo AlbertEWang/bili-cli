@@ -64,12 +64,27 @@ def _reply(r: dict[str, Any], with_children: bool = True) -> dict[str, Any]:
     return item
 
 
+def needs_reply(rows: list[dict[str, Any]], up_mid: int | None) -> list[dict[str, Any]]:
+    """Root comments the uploader has not answered yet (B 站 marks this in up_action.reply)."""
+    return [r for r in rows if not (r.get("up_action") or {}).get("reply") and r.get("mid") != up_mid]
+
+
+def _pinned(data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Pinned comments, which B 站 returns outside `replies` (lazy API: top_replies; paged API: upper.top)."""
+    tops = list(data.get("top_replies") or [])
+    upper_top = (data.get("upper") or {}).get("top")
+    if upper_top and all(t.get("rpid") != upper_top.get("rpid") for t in tops):
+        tops.append(upper_top)
+    return tops
+
+
 @app.command("list")
 def list_(
     target: str = TARGET_ARG,
     type_: str = TYPE_OPT,
     sort: str = typer.Option("hot", "--sort", help="排序：hot（按点赞）或 time（按时间）。"),
     page: int = typer.Option(1, "--page", min=1, help="页码，从 1 开始；第 2 页起需要登录。"),
+    unreplied: bool = typer.Option(False, "--unreplied", help="只看 UP 主还没回复过的评论（不含 UP 主自己发的），按页筛选。"),
 ) -> None:
     """列出评论（每页约 20 条），附带每条评论的前几条楼中楼。"""
 
@@ -85,13 +100,16 @@ def list_(
         if output.settings.raw:
             return data
         pg = data.get("page") or {}
-        return {
-            "oid": oid,
-            "type": type_,
-            "page": page,
-            "total": pg.get("count") or pg.get("acount"),
-            "items": [_reply(r) for r in data.get("replies") or []],
-        }
+        out: dict[str, Any] = {"oid": oid, "type": type_, "page": page, "total": pg.get("count") or pg.get("acount")}
+        rows = data.get("replies") or []
+        if unreplied:
+            up_mid = (data.get("upper") or {}).get("mid")
+            rows = needs_reply(rows, up_mid)
+            out["unreplied"] = len(rows)
+        elif page == 1 and (pinned := _pinned(data)):
+            out["pinned"] = [_reply(r) for r in pinned]
+        out["items"] = [_reply(r) for r in rows]
+        return out
 
     run(body)
 
@@ -229,31 +247,75 @@ def check(
         # logged-in list and relies on the status fields B 站 attaches to each comment.
         cred = config.require_credential()
         oid, rtype = resolve_target(target, type_)
+        pinned_ids: set[int] = set()
+        replies: list[dict[str, Any]] = []
         if root:
-            replies = []
             for p in (1, 2):
                 replies += (await comment.Comment(oid, rtype, root, credential=cred).get_sub_comments(page_index=p, page_size=20)).get("replies") or []
         else:
-            replies = (await comment.get_comments_lazy(oid, rtype, order=comment.OrderType.TIME, credential=cred)).get("replies") or []
-        r = next((x for x in replies if x.get("rpid") == rpid), None)
-        if r is None:
-            return {
-                "rpid": rpid,
-                "found": False,
-                "visible": False,
-                "note": "最新评论中找不到：可能已被删除、进入审核，或已被更新的评论挤到后面。",
-            }
-        folded = bool((r.get("folder") or {}).get("is_folded"))
-        hidden = bool(r.get("invisible")) or r.get("state") not in (0, None)
+            offset = ""
+            for _ in range(CHECK_PAGES):
+                data = await comment.get_comments_lazy(oid, rtype, offset=offset, order=comment.OrderType.TIME, credential=cred)
+                if not offset:  # pinned comments only come with the first page and never appear in `replies`
+                    tops = _pinned(data)
+                    pinned_ids = {t.get("rpid") for t in tops}
+                    replies += tops
+                replies += data.get("replies") or []
+                offset = ((data.get("cursor") or {}).get("pagination_reply") or {}).get("next_offset") or ""
+                if any(x.get("rpid") == rpid for x in replies) or not offset or (data.get("cursor") or {}).get("is_end"):
+                    break
+        return _check_result(rpid, replies, pinned_ids)
+
+    run(body)
+
+
+CHECK_PAGES = 3
+
+
+def _check_result(rpid: int, replies: list[dict[str, Any]], pinned_ids: set[int]) -> dict[str, Any]:
+    r = next((x for x in replies if x.get("rpid") == rpid), None)
+    if r is None:
         return {
             "rpid": rpid,
-            "found": True,
-            "visible": not (folded or hidden),
-            "folded": folded,
-            "hidden": hidden,
-            "state": r.get("state"),
-            "note": "折叠 / 隐藏的评论别人通常看不到，@ 也可能不会发出提醒。" if (folded or hidden) else "从你自己的视角看评论正常显示。",
+            "found": False,
+            "visible": False,
+            "note": f"最新 {CHECK_PAGES} 页评论中找不到：可能已被删除、进入审核，或已被更新的评论挤到后面。",
         }
+    folded = bool((r.get("folder") or {}).get("is_folded"))
+    hidden = bool(r.get("invisible")) or r.get("state") not in (0, None)
+    out: dict[str, Any] = {
+        "rpid": rpid,
+        "found": True,
+        "visible": not (folded or hidden),
+        "folded": folded,
+        "hidden": hidden,
+        "state": r.get("state"),
+    }
+    if rpid in pinned_ids:
+        out["pinned"] = True
+    out["note"] = "折叠 / 隐藏的评论别人通常看不到，@ 也可能不会发出提醒。" if (folded or hidden) else "从你自己的视角看评论正常显示。"
+    return out
+
+
+@app.command()
+def pin(
+    target: str = TARGET_ARG,
+    rpid: int = RPID_ARG,
+    type_: str = TYPE_OPT,
+    undo: bool = typer.Option(False, "--undo", help="取消置顶。"),
+) -> None:
+    """置顶自己作品下的一条根评论（或用 --undo 取消）。每个评论区只能置顶一条，新置顶会替换旧的。"""
+
+    async def body():
+        cred = config.require_credential()
+        oid, rtype = resolve_target(target, type_)
+        params = {"oid": oid, "type": type_, "rpid": rpid, "pin": not undo}
+        if output.settings.dry_run:
+            return {"dry_run": True, "action": "comment.pin", "params": params}
+        guard.check("pin")
+        await comment.Comment(oid, rtype, rpid, credential=cred).pin(status=not undo)
+        guard.record("pin", params, "ok")
+        return {"rpid": rpid, "pinned": not undo}
 
     run(body)
 

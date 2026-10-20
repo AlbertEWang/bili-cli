@@ -2,7 +2,7 @@
 
 > A Bilibili (B站) command-line tool built for AI agents. Every command prints exactly one JSON object ({"ok": true, "data": …} or {"ok": false, "error": {"code", "message", "hint"}}), needs no interaction, and has guardrails for operating the user's own account: rate limits, an audit log, a DM allowlist and the AI-content declaration on uploads.
 
-Install: `uv tool install bili-agent`, then `bili skills install --yes` (Agent Skill for Claude Code, Codex, Cursor, Gemini CLI, Copilot, OpenClaw, …) or `bili mcp install --yes` (MCP clients). Login is a QR code the human scans: `bili auth login`, then `bili auth status --wait 120`.
+Install: `uv tool install bili-agent`, then `bili skills install --yes` (Agent Skill for Claude Code, Codex, Cursor, Gemini CLI, Copilot, OpenClaw, DeepSeek Harness, …) or `bili mcp install --yes` (MCP clients). Login is a QR code the human scans: `bili auth login`, then `bili auth status --wait 120`.
 
 ## Docs
 

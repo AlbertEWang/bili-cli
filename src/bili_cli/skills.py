@@ -71,6 +71,8 @@ TARGETS: list[Target] = [
     Target("qoder", lambda: HOME() / ".qoder"),
     Target("iflow", lambda: HOME() / ".iflow"),
     Target("goose", lambda: _xdg_config() / "goose"),
+    # DeepSeek Harness (dsh) also reads ~/.agents/skills; its own folder ranks higher
+    Target("deepseek-harness", lambda: _env_dir("DSH_HOME", HOME() / ".dsh")),
 ]
 # Agents that pick the skill up from ~/.agents/skills; listed so status can say who is covered.
 COVERED_BY_STANDARD = {

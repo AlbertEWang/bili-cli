@@ -127,14 +127,22 @@ def read_text(text: str | None, file: Path | None) -> str:
 
 def parse_timestamp(value: str) -> int:
     """'90', '1:30' or '0:01:30' -> seconds."""
+    seconds = parse_seconds(value)
+    if not seconds.is_integer():
+        raise BiliError("invalid_argument", f"这里的时间只能精确到秒，收到 {value!r}。")
+    return int(seconds)
+
+
+def parse_seconds(value: str) -> float:
+    """Like parse_timestamp, but the seconds part may have a fraction: '1:30.5' -> 90.5."""
     parts = value.strip().replace("：", ":").split(":")
     try:
-        nums = [int(p) for p in parts]
+        nums = [int(p) for p in parts[:-1]] + [float(parts[-1])]
     except ValueError as exc:
-        raise BiliError("invalid_argument", f"无法识别的时间 {value!r}，请用 秒、分:秒 或 时:分:秒。") from exc
-    if len(nums) > 3 or any(n < 0 for n in nums):
+        raise BiliError("invalid_argument", f"无法识别的时间 {value!r}，请用 秒、分:秒 或 时:分:秒（秒可带小数，如 1:30.5）。") from exc
+    if len(nums) > 3 or any(n < 0 for n in nums) or any(n != n or n == float("inf") for n in nums):
         raise BiliError("invalid_argument", f"无法识别的时间 {value!r}。")
-    total = 0
+    total = 0.0
     for n in nums:
         total = total * 60 + n
     return total

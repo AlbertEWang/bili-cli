@@ -34,7 +34,7 @@ def plan_times(
     duration: float,
     count: int | None = None,
     every: float | None = None,
-    at: list[int] | None = None,
+    at: list[float] | None = None,
     chapter_starts: list[float] | None = None,
 ) -> list[float]:
     """Pick sample times (seconds) within [0, duration)."""
@@ -60,10 +60,18 @@ def plan_times(
 
 
 def fmt_time(t: float) -> str:
-    t = int(t)
-    h, rem = divmod(t, 3600)
+    t = round(t, 2)
+    frac = round(t % 1, 2)
+    h, rem = divmod(int(t), 3600)
     m, s = divmod(rem, 60)
-    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+    sec = f"{s:02d}" + (f"{frac:.2f}".lstrip("0").rstrip("0") if frac else "")
+    return f"{h}:{m:02d}:{sec}" if h else f"{m}:{sec}"
+
+
+def frame_name(t: float) -> str:
+    """frame_000090.jpg, or frame_000090_500.jpg for 90.5 s so sub-second frames don't overwrite each other."""
+    ms = round(t * 1000) % 1000
+    return f"frame_{int(t):06d}" + (f"_{ms:03d}" if ms else "") + ".jpg"
 
 
 async def grab_preview(snapshot: dict[str, Any], times: list[float], out_dir: Path) -> list[dict[str, Any]]:
@@ -89,7 +97,7 @@ async def grab_preview(snapshot: dict[str, Any], times: list[float], out_dir: Pa
                 resp.raise_for_status()
                 sheets[sheet_no] = Image.open(io.BytesIO(resp.content)).convert("RGB")
             x, y = (pos % cols) * w, (pos // cols) * h
-            path = out_dir / f"frame_{int(t):06d}.jpg"
+            path = out_dir / frame_name(t)
             sheets[sheet_no].crop((x, y, x + w, y + h)).save(path, quality=90)
             results.append({"time": t, "actual_time": index[k], "path": str(path)})
     return results
@@ -114,7 +122,7 @@ async def grab_hd(playurl: dict[str, Any], times: list[float], out_dir: Path) ->
     sem = asyncio.Semaphore(HD_CONCURRENCY)
 
     async def one(t: float) -> dict[str, Any]:
-        path = out_dir / f"frame_{int(t):06d}.jpg"
+        path = out_dir / frame_name(t)
         err = b""
         async with sem:
             for url in filter(None, urls):

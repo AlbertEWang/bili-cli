@@ -13,7 +13,7 @@ except ImportError:  # pragma: no cover - older typer depends on click directly
     from click.exceptions import UsageError
 
 from . import __version__, output
-from .commands import asr, auth, comment, danmaku, dm, dynamic, feed, hot, mcp, me, owner, search, skills, upload, video
+from .commands import asr, auth, comment, danmaku, dm, dynamic, feed, hot, mcp, me, owner, search, skills, upload, user, video
 from .errors import ERROR_TABLE, BiliError
 from .runtime import run
 
@@ -33,6 +33,7 @@ app.add_typer(auth.app, name="auth")
 app.add_typer(video.app, name="video")
 app.add_typer(comment.app, name="comment")
 app.add_typer(search.app, name="search")
+app.add_typer(user.app, name="user")
 app.add_typer(feed.app, name="feed")
 app.add_typer(danmaku.app, name="danmaku")
 app.add_typer(me.app, name="me")
@@ -47,7 +48,7 @@ app.add_typer(mcp.app, name="mcp")
 
 # Global flags may appear anywhere on the command line (agents tend to append
 # them at the end); main() moves them in front of the subcommand.
-GLOBAL_FLAGS = ("--pretty", "--compact", "--raw", "--dry-run")
+GLOBAL_FLAGS = ("--pretty", "--compact", "--raw", "--dry-run", "--wait")
 
 
 def _version(value: bool) -> None:
@@ -63,11 +64,13 @@ def root(
     ),
     raw: bool = typer.Option(False, "--raw", help="返回 B 站接口的原始数据，而不是精简后的结构。"),
     dry_run: bool = typer.Option(False, "--dry-run", help="写操作只返回将要执行的请求，不真正执行。"),
+    wait: bool = typer.Option(False, "--wait", help="写操作碰到 60 秒内能恢复的本地限流时自动等待，而不是报错。"),
     version: bool = typer.Option(False, "--version", callback=_version, is_eager=True, help="显示版本。"),
 ) -> None:
     output.settings.pretty = pretty
     output.settings.raw = raw
     output.settings.dry_run = dry_run
+    output.settings.wait = wait
 
 
 def _describe_params(params: list) -> list[dict[str, Any]]:

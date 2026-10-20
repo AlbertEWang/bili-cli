@@ -157,7 +157,7 @@ def frames(
     page: int = PAGE_OPT,
     count: Optional[int] = typer.Option(None, "--count", "-n", min=1, help="均匀采样的帧数（默认 9）。"),
     every: Optional[float] = typer.Option(None, "--every", min=1, help="每隔多少秒取一帧。"),
-    at: list[str] = typer.Option([], "--at", help="指定时间点，如 1:30，可重复传入。"),
+    at: list[str] = typer.Option([], "--at", help="指定时间点，如 1:30 或 1:30.5，可重复传入。"),
     by_chapter: bool = typer.Option(False, "--chapters", help="在每个分段章节开头各取一帧。"),
     quality: str = typer.Option(
         "preview", "--quality", "-q", help="preview：B 站进度条缩略图（480x270，快，免 ffmpeg）；hd：ffmpeg 截取精确帧（≤720p，每帧约 3 秒）。"
@@ -180,13 +180,13 @@ def frames(
         pg = _pick_page(info, page)
         duration = float(pg.get("duration") or 0)
         points = (await v.get_player_info(cid=pg["cid"])).get("view_points") or [] if by_chapter else []
-        from ..runtime import parse_timestamp
+        from ..runtime import parse_seconds
 
         times = fr.plan_times(
             duration,
             count=count,
             every=every,
-            at=[parse_timestamp(a) for a in at] if at else None,
+            at=[parse_seconds(a) for a in at] if at else None,
             chapter_starts=[p.get("from") or 0 for p in points] if by_chapter else None,
         )
         limit = fr.MAX_HD_FRAMES if quality == "hd" else fr.MAX_PREVIEW_FRAMES

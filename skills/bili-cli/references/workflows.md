@@ -59,9 +59,12 @@ bili video triple <BV>                   # 一键三连（点赞 + 投币 + 收�
 bili owner set <主人UID>                         # 一次性设置
 bili comment post <BV> "看完的感想" --at owner    # 真正的 @，主人会收到提醒
 bili comment check <BV> <rpid>                   # 新号/敏感内容可能被折叠，确认一下
+bili comment pin <BV> <rpid>                     # 在自己的视频下置顶一条根评论（--undo 取消）
 ```
 
 返回里的 `mentions[].resolved` 为 `true` 表示 B 站识别了这个 @。一条评论最多 @ 3 人。
+
+`comment list` 第 1 页会把置顶评论单独放在 `pinned` 里。每个评论区只能置顶一条，新置顶会替换旧的；置顶前先问用户。
 
 ## 6. 私信
 
@@ -79,9 +82,12 @@ bili dm send owner "今天看到一个你可能喜欢的视频：BV…"
 bili dynamic post "文字内容" --image cover.png
 bili upload video demo.mp4 --title "标题" --tag AI --tag 教程 --desc-file desc.txt --private
 bili upload status <BV>        # 审核进度，以及 B 站实际记录的标签/分区/声明
+bili upload edit <BV> --title "新标题" --cover new.jpg --cover43 new43.jpg   # 改稿，没指定的设置保持不变
 ```
 
 投稿默认带“含AI生成内容”声明；`--private` 仅自己可见，适合先试；`--schedule 2026-10-25T20:00` 定时发布（需 2 小时到 15 天后）。分区由标题自动预测，预测不准时用 `bili upload zones` 查好再 `--zone`。封面有两张：`--cover` 是横版（16:9），`--cover43` 是手机端推荐流用的 4:3 版，两张都给效果最好。
+
+改稿（`upload edit`）会让稿件重新审核，审核期间新内容不生效；B 站可能丢弃个别标签，改完用 `upload status` 确认。评论区被关闭或精选的稿件请到网页端改。
 
 ## 8. UP 主运营工具
 
@@ -90,4 +96,16 @@ bili upload chapters set <BV> -c "0:00 开场" -c "1:30 正片"     # 进度条�
 bili danmaku interact vote <BV> --question "选哪个？" --option A --option B --time 30
 bili danmaku interact follow <BV> --time 60 --style triple       # 一键三连按钮
 bili danmaku interact list <BV>                                  # 含投票结果、评分
+bili comment pin <BV> <rpid>                                     # 置顶一条评论（如项目链接）
+bili --wait comment list <BV> --unreplied --sort time            # 还没回的评论
 ```
+
+### 看数据、做复盘
+
+```bash
+bili upload stats <BV>     # 每百次播放的点赞/收藏/投币/评论数，完播率、平均观看时长
+bili me stats --period week  # 账号整体：播放、涨粉掉粉、手机/电脑占比、粉丝贡献的播放占比、超过多少同类 UP
+bili user videos <UID> --order views --size 10   # 同类 UP 的爆款，借鉴标题和封面
+```
+
+创作中心数据次日更新：刚发的稿件第二天才有完播率。收藏率明显高于点赞率，通常说明观众觉得“有用、回头再看”。

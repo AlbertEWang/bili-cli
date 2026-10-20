@@ -36,7 +36,7 @@ So bili-cli was born — so an AI doesn't just browse Bilibili, it actually beco
 - 🔥 **Find topics**: browse recommendations, hot search and rankings, and actually understand videos (subtitles + AI summary + frames + speech-to-text)
 - ❤️ **Browse like a person**: like, favourite and one-click "triple" (like + coin + favourite) the videos it enjoys, and DM you the good ones
 
-Hand bili-cli to Claude Code, Codex, Cursor, Gemini CLI, OpenClaw or any agent that can run commands, and it becomes an agent that knows Bilibili (B站):
+Hand bili-cli to Claude Code, Codex, Cursor, Gemini CLI, OpenClaw, DeepSeek Harness or any agent that can run commands, and it becomes an agent that knows Bilibili (B站):
 
 > 🧩 **80+ commands** · 🤖 **auto-installs into 18 agents** · 🔌 **17 MCP tools** · 🛡️ **guardrails on by default** · 💻 **Windows / macOS / Linux**
 
@@ -64,10 +64,10 @@ Requires Python 3.10+. ffmpeg is optional (HD frames, transcription, uploads wit
 |---|---|
 | **Understand a video** in one call: metadata, AI summary, full transcript, top comments, a contact sheet of frames; local speech-to-text when there are no subtitles | `bili video watch <BV>` |
 | **Browse**: personalised recommendations, hot search, popular, weekly picks, rankings — skipping what was already watched | `bili feed recommend --unseen` |
-| **Engage**: one inbox for replies / mentions / likes / DMs, each reply with a ready-to-run `reply_with` command; real @mentions | `bili feed inbox`, `bili comment post <BV> "…" --at owner` |
+| **Engage**: one inbox for replies / mentions / likes / DMs, each reply with a ready-to-run `reply_with` command; real @mentions; pin a comment under your own video | `bili feed inbox`, `bili comment post <BV> "…" --at owner` |
 | **Private messages** with an anti-harassment allowlist | `bili dm send owner "…"` |
-| **Create**: dynamics, uploads (AI-content declaration on by default), scheduling, review status | `bili upload video a.mp4 --title …` |
-| **Creator tools**: progress-bar chapters, interactive votes / ratings / follow buttons | `bili upload chapters set` |
+| **Create**: dynamics, uploads (AI-content declaration on by default), scheduling, review status, editing a published video | `bili upload video a.mp4 --title …`, `bili upload edit <BV> --title …` |
+| **Creator tools**: progress-bar chapters, interactive votes / ratings / follow buttons, creator analytics (completion rate, traffic split, how you rank against similar uploaders), any uploader's profile and videos | `bili upload chapters set`, `bili upload stats <BV>`, `bili me stats`, `bili user videos <UID>` |
 | **Speech-to-text**: one-command local Qwen3-ASR (GPU auto-detected; a 31-min video in ~2 min on an RTX 3060) or cloud engines | `bili asr setup local` |
 | **Agent integration**: install the skill into all local agents | `bili skills install --yes` |
 

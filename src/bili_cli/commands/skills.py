@@ -12,7 +12,7 @@ from ..errors import BiliError
 from ..runtime import run
 
 app = typer.Typer(
-    help="把 bili-cli 的使用技能（Agent Skill）装进本机的 AI Agent：Claude Code、Codex、Cursor、Gemini CLI、Copilot、OpenClaw、Qwen Code 等。",
+    help="把 bili-cli 的使用技能（Agent Skill）装进本机的 AI Agent：Claude Code、Codex、Cursor、Gemini CLI、Copilot、OpenClaw、Qwen Code、DeepSeek Harness 等。",
     no_args_is_help=True,
 )
 

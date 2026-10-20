@@ -21,9 +21,11 @@ LIMITS: dict[str, tuple[int, int]] = {
     "danmaku": (10, 30),
     "like": (3, 120),
     "delete": (3, 60),
+    "pin": (10, 20),
     "dynamic": (60, 10),
     "profile": (30, 10),
     "upload": (300, 5),
+    "upload_edit": (60, 10),
     # B 站 throttles interactive components harder than plain danmaku (36703 within a minute).
     "interact": (30, 20),
     "dm": (10, 20),
@@ -52,8 +54,26 @@ def _disabled() -> bool:
     return os.environ.get("BILI_CLI_NO_RATE_LIMIT") == "1"
 
 
+# with --wait, sleep through limits that clear within this many seconds; longer ones still fail
+MAX_AUTO_WAIT = 60
+
+
 def check(action: str, units: int = 1) -> None:
     """Raise rate_limited if `action` would exceed its local limit. `units` = how much one call uses (e.g. 2 coins)."""
+    from . import output
+
+    try:
+        _check(action, units)
+    except BiliError as e:
+        wait = (e.detail or {}).get("retry_after") or 0
+        if not output.settings.wait or action in DAILY_LIMITS or wait > MAX_AUTO_WAIT:
+            raise
+        output.info(f"{action} 限流，等待 {wait} 秒…")
+        time.sleep(wait)
+        _check(action, units)
+
+
+def _check(action: str, units: int) -> None:
     if _disabled():
         return
     min_interval, per_hour = LIMITS[action]

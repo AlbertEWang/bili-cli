@@ -35,6 +35,7 @@ ZONES_URL = "https://member.bilibili.com/x/vupre/web/archive/human/type2/list"
 # bilibili-api calls this with `t=`, which the server ignores; the parameter is `tag`.
 TAG_CHECK_URL = "https://member.bilibili.com/x/vupre/web/topic/tag/check"
 ARCHIVE_VIEW_URL = "https://member.bilibili.com/x/vupre/web/archive/view"
+EDIT_URL = "https://member.bilibili.com/x/vu/web/edit"
 # Chapter endpoints, as used by B 站's player/editor bundle (scene=chapter).
 CHAPTER_RULE_URL = "https://member.bilibili.com/x/web/viewpoint/rule"
 CHAPTER_SUBMIT_URL = "https://member.bilibili.com/x/web/card/submit"
@@ -369,16 +370,7 @@ def status(bvid: str = typer.Argument(..., help="稿件 BV 号。")) -> None:
     """查看一个稿件的审核状态，以及 B 站实际记录的标签、分区、声明与可见性（可能和提交时不同）。"""
 
     async def body():
-        cred = config.require_credential()
-        async with web_client(cred, referer="https://member.bilibili.com/") as client:
-            resp = await client.get(ARCHIVE_VIEW_URL, params={"bvid": bvid})
-            resp.raise_for_status()
-            res = resp.json()
-        if res.get("code") != 0:
-            from bilibili_api.exceptions import ResponseCodeException
-
-            raise ResponseCodeException(res.get("code"), res.get("message"), res)
-        data = res.get("data") or {}
+        data = await _archive_view(config.require_credential(), bvid)
         if output.settings.raw:
             return data
         arc = data.get("archive") or {}
@@ -404,6 +396,175 @@ def status(bvid: str = typer.Argument(..., help="稿件 BV 号。")) -> None:
             ],
             "url": f"https://www.bilibili.com/video/{arc.get('bvid')}",
         }
+
+    run(body)
+
+
+async def _archive_view(cred: Credential, bvid: str) -> dict[str, Any]:
+    async with web_client(cred, referer="https://member.bilibili.com/") as client:
+        resp = await client.get(ARCHIVE_VIEW_URL, params={"bvid": bvid})
+        resp.raise_for_status()
+        res = resp.json()
+    if res.get("code") != 0:
+        from bilibili_api.exceptions import ResponseCodeException
+
+        raise ResponseCodeException(res.get("code"), res.get("message"), res)
+    return res.get("data") or {}
+
+
+def build_edit(view: dict[str, Any], changes: dict[str, Any]) -> dict[str, Any]:
+    """The edit endpoint replaces the whole archive, so start from what B 站 has now and apply the changes."""
+    arc = view.get("archive") or {}
+    subtitle = view.get("subtitle") or {}
+    statement = (arc.get("creation_statement") or {}).get("id")
+    body: dict[str, Any] = {
+        "aid": arc.get("aid"),
+        "title": arc.get("title"),
+        "copyright": arc.get("copyright"),
+        "source": arc.get("source") or "",
+        "tid": arc.get("tid"),
+        "tag": arc.get("tag"),
+        "desc_format_id": arc.get("desc_format_id") or 9999,
+        "desc": arc.get("desc") or "",
+        "recreate": (arc.get("recreate") or {}).get("switch", -1),
+        "dynamic": arc.get("dynamic") or "",
+        "interactive": arc.get("interactive") or 0,
+        "act_reserve_create": 0,
+        "no_disturbance": view.get("no_disturbance") or 0,
+        "no_reprint": arc.get("no_reprint") or 0,
+        "subtitle": {"open": 1 if subtitle.get("allow") else 0, "lan": subtitle.get("lan") or ""},
+        "dolby": arc.get("is_dolby") or 0,
+        "lossless_music": arc.get("lossless_music") or 0,
+        "up_selection_reply": bool((view.get("reply") or {}).get("up_selection")),
+        "web_os": 1,
+        "is_only_self": arc.get("is_only_self") or 0,
+        "creation_statement": {"id": statement if statement is not None else STATEMENT_NONE},
+        "cover": arc.get("cover"),
+        "videos": [{"filename": v.get("filename"), "title": v.get("title"), "desc": v.get("desc") or "", "cid": v.get("cid")} for v in view.get("videos") or []],
+    }
+    if arc.get("cover43"):
+        body["cover43"] = arc["cover43"]
+    if (arc.get("human_type2") or {}).get("id"):
+        body["human_type2"] = arc["human_type2"]["id"]
+    if arc.get("dtime") and arc.get("state") != 0:  # keep a pending schedule
+        body["dtime"] = arc["dtime"]
+    if "tags" in changes:
+        body["tag"] = ",".join(changes["tags"])
+    if "ai_declare" in changes:
+        body["creation_statement"] = {"id": STATEMENT_AI if changes["ai_declare"] else STATEMENT_NONE}
+    for key in ("title", "desc", "cover", "cover43"):
+        if key in changes:
+            body[key] = changes[key]
+    return body
+
+
+@app.command()
+def edit(
+    bvid: str = typer.Argument(..., help="自己的稿件 BV 号。"),
+    title: Optional[str] = typer.Option(None, "--title", help=f"新标题，最多 {TITLE_MAX} 字。"),
+    desc: Optional[str] = typer.Option(None, "--desc", help=f"新简介，最多 {DESC_MAX} 字。"),
+    desc_file: Optional[Path] = typer.Option(None, "--desc-file", help="从文件读取新简介，`-` 表示 stdin。"),
+    tag: Optional[list[str]] = typer.Option(None, "--tag", help=f"新标签（整体替换），可重复传入，1 到 {TAGS_MAX} 个。"),
+    cover: Optional[Path] = typer.Option(None, "--cover", help="新封面图片。"),
+    cover43: Optional[Path] = typer.Option(None, "--cover43", help="新的 4:3 封面（手机端推荐流）。"),
+    ai_declare: Optional[bool] = typer.Option(None, "--ai-declare/--no-ai-declare", help="修改“含AI生成内容”声明；不传则保持不变。"),
+) -> None:
+    """修改已投稿件的标题、简介、标签、封面或 AI 声明；没指定的设置保持不变。改完稿件会重新审核。"""
+
+    async def body():
+        cred = config.require_credential()
+        changes: dict[str, Any] = {}
+        if title is not None:
+            if not title.strip() or len(title) > TITLE_MAX:
+                raise BiliError("invalid_argument", f"标题需为 1 到 {TITLE_MAX} 字。")
+            changes["title"] = title
+        if desc is not None or desc_file is not None:
+            changes["desc"] = read_text(desc, desc_file)
+            if len(changes["desc"]) > DESC_MAX:
+                raise BiliError("invalid_argument", f"简介最多 {DESC_MAX} 字。")
+        if tag:
+            tags = [t.strip() for t in tag if t.strip()]
+            if not 1 <= len(tags) <= TAGS_MAX:
+                raise BiliError("invalid_argument", f"标签需为 1 到 {TAGS_MAX} 个。")
+            changes["tags"] = tags
+        for name, path in (("cover", cover), ("cover43", cover43)):
+            if path is not None and not path.is_file():
+                raise BiliError("invalid_argument", f"封面文件不存在：{path}")
+        if ai_declare is not None:
+            changes["ai_declare"] = ai_declare
+        if not changes and cover is None and cover43 is None:
+            raise BiliError("invalid_argument", "没有要修改的内容。", hint="传 --title / --desc / --tag / --cover / --cover43 / --ai-declare 中的至少一个。")
+        view = await _archive_view(cred, bvid)
+        if ((view.get("reply") or {}).get("state") or 0) != 0:
+            raise BiliError("invalid_argument", "这个稿件的评论区不是普通开放状态，命令行改稿可能把评论设置改回默认。", hint="请在网页端创作中心修改这个稿件。")
+        if "tags" in changes and (bad := await _check_tags(cred, changes["tags"])):
+            raise BiliError("invalid_argument", f"B 站不接受这些标签：{', '.join(bad)}", detail={"rejected_tags": bad})
+        arc = view.get("archive") or {}
+        before = {"title": arc.get("title"), "desc": arc.get("desc"), "tags": [t for t in (arc.get("tag") or "").split(",") if t],
+                  "ai_declare": (arc.get("creation_statement") or {}).get("id") == STATEMENT_AI}
+        diff = {k: {"from": before[k], "to": v} for k, v in changes.items() if before.get(k) != v}
+        if cover:
+            diff["cover"] = {"to": str(cover)}
+        if cover43:
+            diff["cover43"] = {"to": str(cover43)}
+        if not diff:
+            raise BiliError("invalid_argument", "指定的内容和稿件现在的一样，无需修改。")
+        if output.settings.dry_run:
+            return {"dry_run": True, "action": "upload.edit", "bvid": bvid, "changes": diff, "payload": build_edit(view, changes)}
+        guard.check("upload_edit")
+        if cover:
+            changes["cover"] = await vu.upload_cover(Picture.from_file(str(cover)), cred)
+        if cover43:
+            changes["cover43"] = await vu.upload_cover(Picture.from_file(str(cover43)), cred)
+        payload = build_edit(view, changes)
+        await (
+            Api(url=EDIT_URL, method="POST", verify=True, credential=cred, no_csrf=True, json_body=True)
+            .update_params(csrf=cred.bili_jct, t=int(time.time()))
+            .update_data(**payload, csrf=cred.bili_jct)
+            .update_headers(referer="https://member.bilibili.com")
+            .result
+        )
+        guard.record("upload_edit", {"bvid": bvid, "changes": diff}, "ok")
+        return {"bvid": bvid, "changes": diff, "next": f"改动需要重新审核；B 站可能丢弃个别标签，用 `bili upload status {bvid}` 确认实际生效的内容。"}
+
+    run(body)
+
+
+def video_rates(stat: dict[str, Any]) -> dict[str, float | None]:
+    """Interactions per 100 plays — the numbers that decide whether B 站 pushes a video further."""
+    view = stat.get("view") or 0
+    keys = {"like": "like", "favorite": "favorite", "coin": "coin", "reply": "reply", "share": "share", "danmaku": "danmaku"}
+    return {k: round((stat.get(src) or 0) * 100 / view, 2) if view else None for k, src in keys.items()}
+
+
+@app.command()
+def stats(bvid: str = typer.Argument(..., help="自己的稿件 BV 号。")) -> None:
+    """单个稿件的数据：播放与互动、每百次播放的互动率、完播率和平均观看时长（创作中心数据，次日更新）。"""
+
+    async def body():
+        from bilibili_api import video as bvideo
+
+        cred = config.require_credential()
+        info = await bvideo.Video(bvid=bvid, credential=cred).get_info()
+        stat = info.get("stat") or {}
+        plays = await cc.get_video_playanalysis(cred)
+        if output.settings.raw:
+            return {"info_stat": stat, "playanalysis": plays}
+        row = next((a for a in plays.get("arc_play_list") or [] if a.get("bvid") == info.get("bvid")), None)
+        out: dict[str, Any] = {
+            "bvid": info.get("bvid"),
+            "title": info.get("title"),
+            "published": iso_time(info.get("pubdate")),
+            "duration": info.get("duration"),
+            "stat": {k: stat.get(k) for k in ("view", "like", "favorite", "coin", "reply", "share", "danmaku")},
+            "per_100_plays": video_rates(stat),
+        }
+        if row:
+            out["completion_percent"] = round((row.get("rate") or 0) / 100, 2)
+            out["avg_watch_seconds"] = row.get("avg_duration")
+        else:
+            out["completion_note"] = "创作中心还没有这个稿件的完播数据：数据次日更新，且只覆盖最近的约 30 个稿件。"
+        return out
 
     run(body)
 

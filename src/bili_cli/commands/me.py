@@ -14,7 +14,7 @@ from .. import config, guard, output
 from ..errors import BiliError
 from ..runtime import run, web_client
 
-app = typer.Typer(help="查看与修改个人资料：昵称、签名、头像。", no_args_is_help=True)
+app = typer.Typer(help="我的账号：资料、创作中心数据；修改昵称、签名、头像。", no_args_is_help=True)
 
 ACCOUNT_URL = "https://api.bilibili.com/x/member/web/account"
 MYINFO_URL = "https://api.bilibili.com/x/space/myinfo"
@@ -71,6 +71,65 @@ def favs() -> None:
         from .video import _folders
 
         return {"folders": await _folders(config.require_credential())}
+
+    run(body)
+
+
+STATS_PERIODS = {"yesterday": -1, "week": 0, "month": 1, "3months": 2}
+
+
+def _pct(basis_points: Any) -> float | None:
+    """Creator-center ratios come in 1/10000 (9695 -> 96.95%)."""
+    return None if basis_points is None else round(basis_points / 100, 2)
+
+
+def summarize_stats(overview: dict, fans: dict, source: dict, compare: dict, survey: dict) -> dict[str, Any]:
+    def pair(key: str) -> dict[str, Any]:
+        return {"now": overview.get(key), "previous": overview.get(f"{key}_last")}
+
+    platforms = {k.removeprefix("new_"): v for k, v in (source.get("play_proportion") or {}).items() if k.startswith("new_") and v}
+    audience = source.get("audience_proportion") or {}
+    viewers = (audience.get("fans") or 0) + (audience.get("guest") or 0)
+    day = next(iter(survey.values()), {}) if survey else {}
+    return {
+        "data_date": str(overview.get("log_date") or fans.get("log_date") or "") or None,
+        "plays": pair("play"),
+        "visitors": pair("visitor"),
+        "new_fans": pair("fan"),
+        # this endpoint currently reports interactions as 0; leave them out rather than mislead
+        **({"interactions": inter} if any((inter := {k: overview.get(k) for k in ("like", "fav", "coin", "comment", "dm", "share")}).values()) else {}),
+        "fans": {
+            "total": fans.get("all_fans"),
+            "followed": fans.get("follow"),
+            "unfollowed": fans.get("unfollow"),
+            "interacting_percent": _pct(fans.get("interact_fans_per")),
+        },
+        "play_platforms_percent": {k: _pct(v) for k, v in sorted(platforms.items(), key=lambda kv: -kv[1])},
+        "plays_from_fans_percent": round(audience.get("fans", 0) * 100 / viewers, 2) if viewers else None,
+        "beats_similar_ups_percent": {k: _pct(compare.get(f"{k}_pass_peer")) for k in ("play", "like", "new_fans", "replydm")},
+        "top_videos_yesterday": [{"bvid": a.get("bvid"), "title": a.get("title"), "plays": a.get("incr")} for a in (day.get("arc_inc") or [])[:5]],
+    }
+
+
+@app.command()
+def stats(
+    period: str = typer.Option("week", "--period", help="统计周期：yesterday / week / month / 3months（和上一周期对比）。"),
+) -> None:
+    """创作中心数据：播放、访客、涨粉、互动、播放端分布、粉丝占比、超过多少同类 UP、昨日涨得最多的视频。数据次日更新。"""
+
+    async def body():
+        from bilibili_api import creative_center as cc
+
+        if period not in STATS_PERIODS:
+            raise BiliError("invalid_argument", f"--period 只能是 {' / '.join(STATS_PERIODS)} 之一。")
+        cred = config.require_credential()
+        p = STATS_PERIODS[period]
+        overview = await cc.get_overview(cred, cc.GraphPeriod(p))
+        fans = await cc.get_fan_overview(cred, cc.FanGraphPeriod(p))
+        source, compare, survey = await cc.get_video_source(cred), await cc.get_compare(cred), await cc.get_video_survey(cred)
+        if output.settings.raw:
+            return {"overview": overview, "fans": fans, "source": source, "compare": compare, "survey": survey}
+        return {"period": period, **summarize_stats(overview, fans, source, compare, survey), "per_video_with": "bili upload stats <BV>"}
 
     run(body)
 

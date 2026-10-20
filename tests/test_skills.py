@@ -9,7 +9,7 @@ from bili_cli import skills as sk
 @pytest.fixture
 def home(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    for var in ("CLAUDE_CONFIG_DIR", "OPENCLAW_HOME", "CODEX_HOME", "XDG_CONFIG_HOME"):
+    for var in ("CLAUDE_CONFIG_DIR", "OPENCLAW_HOME", "CODEX_HOME", "XDG_CONFIG_HOME", "DSH_HOME"):
         monkeypatch.delenv(var, raising=False)
     # guard: every target must resolve inside the temp home, never the real one
     assert all(str(t.skill_dir()).startswith(str(tmp_path)) for t in sk.TARGETS)
@@ -93,3 +93,15 @@ def test_claude_config_dir_env_is_respected(home, monkeypatch, tmp_path):
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(custom))
     plan = by_agent(sk.plan(sk.TARGETS, ["claude-code"]))
     assert plan["claude-code"]["path"] == str(custom / "skills" / sk.SKILL_NAME)
+
+
+def test_deepseek_harness_detected_via_dsh_home(home, monkeypatch, tmp_path):
+    assert by_agent(sk.plan(sk.TARGETS, None))["deepseek-harness"]["action"] == "skip: agent not installed"
+    (home / ".dsh").mkdir()
+    plan = by_agent(sk.plan(sk.TARGETS, None))
+    assert plan["deepseek-harness"]["path"] == str(home / ".dsh" / "skills" / sk.SKILL_NAME)
+    custom = tmp_path / "custom-dsh"
+    custom.mkdir()
+    monkeypatch.setenv("DSH_HOME", str(custom))
+    plan = by_agent(sk.plan(sk.TARGETS, ["deepseek-harness"]))
+    assert plan["deepseek-harness"]["path"] == str(custom / "skills" / sk.SKILL_NAME)
