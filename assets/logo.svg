@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="bili-cli logo">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF5C93"/>
+      <stop offset="0.5" stop-color="#A46BFF"/>
+      <stop offset="1" stop-color="#22B5F5"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1E2233"/>
+      <stop offset="1" stop-color="#11131C"/>
+    </linearGradient>
+    <linearGradient id="prompt" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FF7AA8"/>
+      <stop offset="1" stop-color="#5CC8F5"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#0B0D16" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- app tile -->
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg)"/>
+
+  <!-- screen -->
+  <rect x="84" y="138" width="344" height="252" rx="56" fill="url(#screen)" filter="url(#shadow)"/>
+  <rect x="84" y="138" width="344" height="252" rx="56" fill="none" stroke="#FFFFFF" stroke-opacity="0.9" stroke-width="12"/>
+
+  <!-- prompt: >_ -->
+  <path d="M150 218 L210 264 L150 310" fill="none" stroke="url(#prompt)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="236" y="296" width="96" height="26" rx="13" fill="url(#prompt)"/>
+
+  <!-- AI sparkle -->
+  <path d="M400 70 C404 104 414 114 448 118 C414 122 404 132 400 166 C396 132 386 122 352 118 C386 114 396 104 400 70 Z" fill="#FFFFFF"/>
+  <path d="M342 54 C344 68 348 72 362 74 C348 76 344 80 342 94 C340 80 336 76 322 74 C336 72 340 68 342 54 Z" fill="#FFFFFF" fill-opacity="0.85"/>
+</svg>

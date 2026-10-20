@@ -1,23 +1,27 @@
 <div align="center">
 
-# bili-cli
+<img src="assets/banner.png" alt="bili-cli: one sentence teaches your AI agent to run your Bilibili account" width="100%">
 
-**Let your AI agent run your Bilibili account — safely**
-
-Watch · reply · DM · post · upload — one command, one JSON
+<br>
 
 [![CI](https://github.com/kukemc/bili-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/kukemc/bili-cli/actions/workflows/ci.yml)
-![Python](https://img.shields.io/badge/python-3.10%2B-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Agent Skills](https://img.shields.io/badge/Agent%20Skills-ready-8A2BE2)
+![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
+![Platform](https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-supported-555)
+![Agent Skills](https://img.shields.io/badge/Agent%20Skills-ready-A46BFF)
+![MCP](https://img.shields.io/badge/MCP-17%20tools-FF5C93)
+![License](https://img.shields.io/badge/license-MIT-22B5F5)
 
-[简体中文](README.md) | English
+[简体中文](README.md) | **English**
 
 </div>
 
----
+## One sentence teaches your AI agent to run your Bilibili account
 
-bili-cli is a Bilibili (B站) command-line tool **built for AI agents**. Give it to Claude Code, Codex, Cursor, Gemini CLI, OpenClaw or any agent that can run shell commands, and it can browse and understand videos, answer comments, message you, post updates and upload videos — with guardrails on by default: rate limits, an audit log, a DM allowlist and AI-content labelling.
+**Browse recommendations, chase trends, actually understand videos, answer fans, @ you, reply to DMs, post updates, upload videos** — and even add polls and chapter markers to your own videos.
+
+Hand bili-cli to Claude Code, Codex, Cursor, Gemini CLI, OpenClaw or any agent that can run commands, and it becomes an agent that knows Bilibili (B站):
+
+> 🧩 **76 commands** · 🤖 **auto-installs into 18 agents** · 🔌 **17 MCP tools** · 🛡️ **guardrails on by default** · 💻 **Windows / macOS / Linux**
 
 ## Install
 
