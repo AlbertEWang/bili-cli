@@ -258,6 +258,15 @@ Windows 在 `%APPDATA%\bili-cli\`，其他系统在 `~/.config/bili-cli/`（权�
 
 欢迎 Issue 和 PR！开发约定见 [CONTRIBUTING.md](https://github.com/kukemc/bili-cli/blob/main/CONTRIBUTING.md)，更新记录见 [CHANGELOG.md](https://github.com/kukemc/bili-cli/blob/main/CHANGELOG.md)。如果这个项目帮到了你，点个 ⭐ 就是最大的支持。
 
+## ⭐ Star 趋势
+
+<a href="https://star-history.com/#kukemc/bili-cli&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=kukemc/bili-cli&type=Date&theme=dark" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=kukemc/bili-cli&type=Date" />
+  </picture>
+</a>
+
 ## ⚠️ 免责声明
 
 bili-cli 是独立的非官方项目，与哔哩哔哩没有关联。它用于让 AI 助手**管理你自己的账号**，不提供也不接受下载、付费内容、绕过风控、多账号、刷量、批量私信等功能。使用产生的后果由使用者自行承担，请遵守法律法规、B 站用户协议与社区规则，并对 AI 生成内容进行标识。完整内容见 [DISCLAIMER.md](https://github.com/kukemc/bili-cli/blob/main/DISCLAIMER.md)。
