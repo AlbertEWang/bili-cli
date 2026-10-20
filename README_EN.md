@@ -104,6 +104,8 @@ bili mcp install --yes    # registers in Claude Desktop / Claude Code / Cursor /
 
 Per-action rate limits, an audit log of every write, `--dry-run` everywhere, a DM allowlist (owner, people who messaged you, mutual follows), the AI-content declaration on uploads, and dedicated error codes for risk control and captchas that tell the agent to stop.
 
+**Use an account you have already been using for a while — don't register a fresh one for your agent.** Bilibili is strictest with brand-new accounts: uploads, comments and DMs from them hit captchas and restrictions quickly (we learned this the hard way — a new test account got flagged right away, while a years-old account worked fine). Keep the pace human.
+
 ## Disclaimer
 
 bili-cli is an independent, unofficial project, not affiliated with Bilibili. It is meant for letting an AI assistant manage **your own** account. It does not provide downloading, paid content, risk-control circumvention, multi-account automation, engagement manipulation or mass messaging. See [DISCLAIMER.md](DISCLAIMER.md).

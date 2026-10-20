@@ -30,7 +30,7 @@ Tell the user which agents received the skill (`targets[].agent`). The skill tea
 bili auth login
 ```
 
-Give the user the `qr_image` path (or `qr_url`) and ask them to scan it with the Bilibili app and confirm. When they say done:
+Give the user the `qr_image` path (or `qr_url`) and ask them to scan it with the Bilibili app and confirm. Recommend scanning with an account they already use normally: Bilibili is strictest with freshly registered accounts, which hit risk control and captchas almost immediately. When they say done:
 
 ```bash
 bili auth status --wait 120
