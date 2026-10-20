@@ -1,0 +1,27 @@
+# bili-cli
+
+> A Bilibili (B站) command-line tool built for AI agents. Every command prints exactly one JSON object ({"ok": true, "data": …} or {"ok": false, "error": {"code", "message", "hint"}}), needs no interaction, and has guardrails for operating the user's own account: rate limits, an audit log, a DM allowlist and the AI-content declaration on uploads.
+
+Install: `uv tool install git+https://github.com/kukemc/bili-cli`, then `bili skills install --yes` (Agent Skill for Claude Code, Codex, Cursor, Gemini CLI, Copilot, OpenClaw, …) or `bili mcp install --yes` (MCP clients). Login is a QR code the human scans: `bili auth login`, then `bili auth status --wait 120`.
+
+## Docs
+
+- [Agent skill](https://github.com/kukemc/bili-cli/blob/main/skills/bili-cli/SKILL.md): how an agent should use bili-cli, rules and workflows
+- [Workflows](https://github.com/kukemc/bili-cli/blob/main/skills/bili-cli/references/workflows.md): inbox → reply, browse → watch, comment with @, DMs, uploads
+- [Error codes](https://github.com/kukemc/bili-cli/blob/main/skills/bili-cli/references/errors.md)
+- [Safety](https://github.com/kukemc/bili-cli/blob/main/skills/bili-cli/references/safety.md)
+- [Install guide for agents](https://github.com/kukemc/bili-cli/blob/main/docs/install.md)
+
+## Key commands
+
+- `bili feed inbox`: new replies, mentions, likes, system notices and DMs in one call; each reply has a ready-to-run `reply_with`
+- `bili video watch <BV>`: info, AI summary, transcript, chapters, top comments and a frame contact sheet
+- `bili feed recommend --unseen`, `bili hot popular|search|weekly|rank`, `bili search video <keyword>`
+- `bili comment post|reply … --at <UID|owner>`, `bili dm list|read|send`, `bili dynamic post`, `bili upload video`
+- `bili schema`: machine-readable description of every command
+
+## Optional
+
+- [README (中文)](https://github.com/kukemc/bili-cli/blob/main/README.md)
+- [README (English)](https://github.com/kukemc/bili-cli/blob/main/README_EN.md)
+- [Disclaimer](https://github.com/kukemc/bili-cli/blob/main/DISCLAIMER.md)

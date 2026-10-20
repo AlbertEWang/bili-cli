@@ -4,7 +4,6 @@ description: Operate a Bilibili (B站/哔哩哔哩) account through the `bili` C
 license: MIT
 compatibility: Requires the `bili` command (bili-cli, Python 3.10+) and network access. Account actions need a one-time QR login by the human (`bili auth login`).
 metadata:
-  version: "0.1.0"
   homepage: "https://github.com/kukemc/bili-cli"
 ---
 

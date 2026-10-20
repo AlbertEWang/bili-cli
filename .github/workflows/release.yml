@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Check the tag matches the package version
+        run: |
+          version=$(python -c "import re,pathlib; print(re.search(r'__version__ = \"(.+?)\"', pathlib.Path('src/bili_cli/__init__.py').read_text()).group(1))")
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME != version $version"; exit 1; }
+      - name: Test
+        run: |
+          pip install -e ".[dev]"
+          pytest -q
+      - name: Build
+        run: |
+          pip install build
+          python -m build
+      - name: Release notes from CHANGELOG.md
+        run: |
+          python - <<'EOF'
+          import os, re, pathlib
+          version = os.environ["GITHUB_REF_NAME"].lstrip("v")
+          text = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
+          m = re.search(rf"^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## \[|\Z)", text, re.S | re.M)
+          notes = m.group(1).strip() if m else f"bili-cli {version}"
+          notes += "\n\n**安装 / Install:** `uv tool install git+https://github.com/kukemc/bili-cli@" + os.environ["GITHUB_REF_NAME"] + "` 然后 `bili skills install --yes`"
+          pathlib.Path("notes.md").write_text(notes, encoding="utf-8")
+          EOF
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "bili-cli $GITHUB_REF_NAME" --notes-file notes.md

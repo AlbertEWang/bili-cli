@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bili-cli"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Bilibili command-line tool designed for AI agents: JSON output, stable error codes, zero interaction."
 readme = "README.md"
 license = "MIT"
@@ -30,6 +30,14 @@ dev = ["pytest>=8", "mcp>=2.3"]
 
 [project.scripts]
 bili = "bili_cli.main:main"
+
+[tool.hatch.version]
+path = "src/bili_cli/__init__.py"
+
+[project.urls]
+Homepage = "https://github.com/kukemc/bili-cli"
+Issues = "https://github.com/kukemc/bili-cli/issues"
+Changelog = "https://github.com/kukemc/bili-cli/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bili_cli"]
