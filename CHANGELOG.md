@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-20
+
 ### Added
 - `bili upload video --cover43`：单独上传手机端推荐流使用的 4:3 封面。
 
