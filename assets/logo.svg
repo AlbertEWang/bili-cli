@@ -5,31 +5,37 @@
       <stop offset="0.5" stop-color="#A46BFF"/>
       <stop offset="1" stop-color="#22B5F5"/>
     </linearGradient>
+    <radialGradient id="gloss" cx="0.25" cy="0.1" r="0.75">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.32"/>
+      <stop offset="0.6" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
     <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1E2233"/>
-      <stop offset="1" stop-color="#11131C"/>
+      <stop offset="0" stop-color="#1E2240"/>
+      <stop offset="1" stop-color="#0F1122"/>
     </linearGradient>
     <linearGradient id="prompt" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0" stop-color="#FF7AA8"/>
       <stop offset="1" stop-color="#5CC8F5"/>
     </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#0B0D16" flood-opacity="0.35"/>
+    <filter id="blur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="14"/>
     </filter>
   </defs>
 
-  <!-- app tile -->
+  <!-- app tile + soft gloss -->
   <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg)"/>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#gloss)"/>
 
-  <!-- screen -->
-  <rect x="84" y="138" width="344" height="252" rx="56" fill="url(#screen)" filter="url(#shadow)"/>
-  <rect x="84" y="138" width="344" height="252" rx="56" fill="none" stroke="#FFFFFF" stroke-opacity="0.9" stroke-width="12"/>
+  <!-- screen with drop shadow -->
+  <rect x="72" y="146" width="368" height="270" rx="64" fill="#2A1450" opacity="0.28" filter="url(#blur)"/>
+  <rect x="72" y="128" width="368" height="270" rx="64" fill="url(#screen)"/>
+  <rect x="72" y="128" width="368" height="270" rx="64" fill="none" stroke="#FFFFFF" stroke-width="14"/>
 
   <!-- prompt: >_ -->
-  <path d="M150 218 L210 264 L150 310" fill="none" stroke="url(#prompt)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="236" y="296" width="96" height="26" rx="13" fill="url(#prompt)"/>
+  <path d="M146 214 L218 263 L146 312" fill="none" stroke="url(#prompt)" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="246" y="290" width="112" height="34" rx="17" fill="url(#prompt)"/>
 
-  <!-- AI sparkle -->
-  <path d="M400 70 C404 104 414 114 448 118 C414 122 404 132 400 166 C396 132 386 122 352 118 C386 114 396 104 400 70 Z" fill="#FFFFFF"/>
-  <path d="M342 54 C344 68 348 72 362 74 C348 76 344 80 342 94 C340 80 336 76 322 74 C336 72 340 68 342 54 Z" fill="#FFFFFF" fill-opacity="0.85"/>
+  <!-- AI sparkles -->
+  <path d="M410 58 C414.8 99.1 426.9 111.2 468 116 C426.9 120.8 414.8 132.9 410 174 C405.2 132.9 393.1 120.8 352 116 C393.1 111.2 405.2 99.1 410 58 Z" fill="#FFFFFF"/>
+  <path d="M348 46 C349.5 58.8 353.2 62.5 366 64 C353.2 65.5 349.5 69.2 348 82 C346.5 69.2 342.8 65.5 330 64 C342.8 62.5 346.5 58.8 348 46 Z" fill="#FFFFFF"/>
 </svg>
