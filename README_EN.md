@@ -66,9 +66,9 @@ Requires Python 3.10+. ffmpeg is optional (HD frames, transcription, uploads wit
 |---|---|
 | **Understand a video** in one call: metadata, AI summary, full transcript, top comments, a contact sheet of frames; local speech-to-text when there are no subtitles | `bili video watch <BV>` |
 | **Browse**: personalised recommendations, hot search, popular, weekly picks, rankings — skipping what was already watched | `bili feed recommend --unseen` |
-| **Engage**: one inbox for replies / mentions / likes / DMs, each reply with a ready-to-run `reply_with` command; real @mentions by UID or nickname; comments with images; emote lookup; pin a comment under your own video | `bili feed inbox`, `bili comment post <BV> "…" --at owner` |
+| **Engage**: one inbox for replies / mentions / likes / DMs, each reply with a ready-to-run `reply_with` command; real @mentions by UID or nickname; comments with images; emote lookup; list only the comments you haven't answered; pin a comment under your own video | `bili feed inbox`, `bili comment post <BV> "…" --at owner` |
 | **Private messages** with an anti-harassment allowlist | `bili dm send owner "…"` |
-| **Create**: dynamics, uploads (AI-content declaration on by default), scheduling, review status, editing a published video | `bili upload video a.mp4 --title …`, `bili upload edit <BV> --title …` |
+| **Create**: text and image dynamics with @mentions, uploads (AI-content declaration on by default, separate 4:3 cover), scheduling, review status, editing a published video | `bili upload video a.mp4 --title …`, `bili upload edit <BV> --title …` |
 | **Creator tools**: progress-bar chapters, interactive votes / ratings / follow buttons, creator analytics (completion rate, traffic split, how you rank against similar uploaders), any uploader's profile and videos | `bili upload chapters set`, `bili upload stats <BV>`, `bili me stats`, `bili user videos <UID>` |
 | **Speech-to-text**: one-command local Qwen3-ASR (GPU auto-detected; a 31-min video in ~2 min on an RTX 3060) or cloud engines | `bili asr setup local` |
 | **Agent integration**: install the skill into all local agents | `bili skills install --yes` |
@@ -95,7 +95,7 @@ bili mcp install --yes    # registers in Claude Desktop / Claude Code / Cursor /
 
 ## Guardrails (on by default)
 
-Per-action rate limits, an audit log of every write, `--dry-run` everywhere, a DM allowlist (owner, people who messaged you, mutual follows), the AI-content declaration on uploads, and dedicated error codes for risk control and captchas that tell the agent to stop.
+Per-action rate limits (`--wait` sleeps through the short ones), an audit log of every write, `--dry-run` everywhere, a DM allowlist (owner, people who messaged you, mutual follows), the AI-content declaration on uploads, and dedicated error codes for risk control and captchas that tell the agent to stop.
 
 **Use an account you have already been using for a while — don't register a fresh one for your agent.** Bilibili is strictest with brand-new accounts: uploads, comments and DMs from them hit captchas and restrictions quickly (we learned this the hard way — a new test account got flagged right away, while a years-old account worked fine). Keep the pace human.
 
