@@ -122,10 +122,11 @@ def build_server():
         return call(["dm", "read", uid, "--limit", str(limit)])
 
     # ---- writing (as the user)
-    @server.tool(annotations=write, description="以用户身份发表评论。at: 要 @ 的 UID 列表或 'owner'（对方会收到提醒）。dry_run 只预览。")
-    def post_comment(target: str, text: str, at: list[str] | None = None, type: str = "video", dry_run: bool = False) -> dict:
+    @server.tool(annotations=write, description="以用户身份发表评论。at: 要 @ 的 UID / 完整昵称 / 'owner'（对方会收到提醒）；images: 本地图片路径（回复不能带图）；表情直接写 [笑哭]。dry_run 只预览。")
+    def post_comment(target: str, text: str, at: list[str] | None = None, images: list[str] | None = None, type: str = "video", dry_run: bool = False) -> dict:
         args = ["comment", "post", target, "--type", type, "--file", "-"]
         _flag(args, "--at", at or [])
+        _flag(args, "--image", images or [])
         _flag(args, "--dry-run", dry_run)
         return _call_with_stdin(args, text)
 
@@ -143,10 +144,11 @@ def build_server():
         _flag(args, "--dry-run", dry_run)
         return _call_with_stdin(args, text)
 
-    @server.tool(annotations=write, description="发布文字 / 图文动态。images 为本地图片路径列表。")
-    def post_dynamic(text: str, images: list[str] | None = None, dry_run: bool = False) -> dict:
+    @server.tool(annotations=write, description="发布文字 / 图文动态。images 为本地图片路径列表（最多 9 张）；at: 要 @ 的 UID / 完整昵称 / 'owner'。")
+    def post_dynamic(text: str, images: list[str] | None = None, at: list[str] | None = None, dry_run: bool = False) -> dict:
         args = ["dynamic", "post", "--file", "-"]
         _flag(args, "--image", images or [])
+        _flag(args, "--at", at or [])
         _flag(args, "--dry-run", dry_run)
         return _call_with_stdin(args, text)
 

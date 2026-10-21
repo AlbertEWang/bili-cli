@@ -142,14 +142,17 @@ def replies(
 
 
 AT_OPT = typer.Option(
-    [], "--at", help="要 @ 的人：UID，或 owner（主人，见 `bili owner set`）。可重复传入，会自动在正文开头加上 @昵称。"
+    [], "--at", help="要 @ 的人：UID、完整昵称，或 owner（主人，见 `bili owner set`）。可重复传入；正文里没写 @昵称 时会自动加在开头。"
 )
 MAX_MENTIONS = 3
+IMAGE_OPT = typer.Option([], "--image", "-i", help="随评论发的图片路径，可重复传入，最多 9 张（只有根评论能带图）。")
+MAX_IMAGES = 9
 
 
 async def _mentions(values: list[str]) -> dict[str, int]:
     """Resolve --at values to {exact current nickname: mid}; the web client sends this as at_name_to_mid."""
     from .owner import resolve_user
+    from .user import resolve_mid
 
     if len(values) > MAX_MENTIONS:
         raise BiliError("invalid_argument", f"一条评论最多 @ {MAX_MENTIONS} 个人。")
@@ -160,10 +163,8 @@ async def _mentions(values: list[str]) -> dict[str, int]:
             if not owner:
                 raise BiliError("invalid_argument", "还没有设置主人。", hint="运行 `bili owner set <UID>`。")
             mid = int(owner["mid"])
-        elif v.isdigit():
-            mid = int(v)
         else:
-            raise BiliError("invalid_argument", f"--at 需要 UID 或 owner，收到 {v!r}。")
+            mid = await resolve_mid(v)
         name = (await resolve_user(mid)).get("name")  # nicknames change; always use the current one
         if not name:
             raise BiliError("not_found", f"找不到 UID {mid} 对应的用户。")
@@ -171,8 +172,29 @@ async def _mentions(values: list[str]) -> dict[str, int]:
     return out
 
 
+def check_images(images: list[Path]) -> None:
+    if len(images) > MAX_IMAGES:
+        raise BiliError("invalid_argument", f"最多 {MAX_IMAGES} 张图片，收到 {len(images)} 张。")
+    for p in images:
+        if not p.is_file():
+            raise BiliError("invalid_argument", f"图片不存在：{p}")
+
+
+async def _upload_pictures(cred, images: list[Path]) -> str:
+    """Upload through the dynamic image endpoint, like the web comment box does; returns the `pictures` field."""
+    from bilibili_api import Picture
+    from bilibili_api.dynamic import upload_image
+
+    pics = []
+    for p in images:
+        res = await upload_image(Picture.from_file(str(p)), cred)
+        pics.append({"img_src": res["image_url"], "img_width": res["image_width"], "img_height": res["image_height"], "img_size": res["img_size"]})
+    return json.dumps(pics)
+
+
 async def _send(
-    target: str, type_: str, text: str, root: int | None, parent: int | None, at: list[str] | None = None
+    target: str, type_: str, text: str, root: int | None, parent: int | None, at: list[str] | None = None,
+    images: list[Path] | None = None,
 ) -> dict[str, Any]:
     from bilibili_api.comment import API as COMMENT_API
     from bilibili_api.utils.network import Api
@@ -182,12 +204,17 @@ async def _send(
     # Replying to a root comment: the web client sends parent=root too.
     if root is not None and parent is None:
         parent = root
+    images = images or []
+    if images and root is not None:
+        raise BiliError("invalid_argument", "B 站不允许回复（楼中楼）带图，只有直接发在评论区的根评论能带图。")
+    check_images(images)
     mentions = await _mentions(at or [])
     # B 站 only turns "@name " into a real mention (with notification) when the
     # text contains it *and* at_name_to_mid maps the name to the UID.
     prefix = "".join(f"@{name} " for name in mentions if f"@{name}" not in text)
     message = prefix + text
-    params = {"oid": oid, "type": type_, "text": message, "root": root, "parent": parent, "mentions": mentions or None}
+    params = {"oid": oid, "type": type_, "text": message, "root": root, "parent": parent, "mentions": mentions or None,
+              "images": [str(p) for p in images] or None}
     if output.settings.dry_run:
         return {"dry_run": True, "action": "comment.send", "params": params}
     data: dict[str, Any] = {
@@ -199,6 +226,8 @@ async def _send(
     if mentions:
         data["at_name_to_mid"] = json.dumps(mentions, ensure_ascii=False)
     guard.check("comment")
+    if images:
+        data["pictures"] = await _upload_pictures(cred, images)
     res = await Api(**COMMENT_API["comment"]["send"], credential=cred).update_data(**data).result
     guard.record("comment", params, {"rpid": res.get("rpid")})
     out: dict[str, Any] = {
@@ -210,6 +239,8 @@ async def _send(
         "content": message,
         "success_toast": res.get("success_toast"),
     }
+    if images:
+        out["images"] = len(images)
     if mentions:
         members = {int(m.get("mid")) for m in ((res.get("reply") or {}).get("content") or {}).get("members") or [] if m.get("mid")}
         out["mentions"] = [{"name": n, "mid": m, "resolved": m in members} for n, m in mentions.items()]
@@ -224,11 +255,12 @@ def post(
     type_: str = TYPE_OPT,
     file: Optional[Path] = FILE_OPT,
     at: list[str] = AT_OPT,
+    image: list[Path] = IMAGE_OPT,
 ) -> None:
-    """发表一条评论，可用 --at 真正 @ 某人（对方会收到提醒）。"""
+    """发表一条评论，可用 --at 真正 @ 某人（对方会收到提醒），--image 附带图片。表情直接写 [笑哭] 这类文字，可用的见 `bili comment emotes`。"""
 
     async def body():
-        return await _send(target, type_, read_text(text, file), None, None, at)
+        return await _send(target, type_, read_text(text, file), None, None, at, image)
 
     run(body)
 
@@ -332,7 +364,7 @@ def reply(
     file: Optional[Path] = FILE_OPT,
     at: list[str] = AT_OPT,
 ) -> None:
-    """回复一条评论。回复根评论直接传 rpid；回复楼中楼时额外传 --root。"""
+    """回复一条评论。回复根评论直接传 rpid；回复楼中楼时额外传 --root。可带 --at；B 站不允许回复带图。"""
 
     async def body():
         content = read_text(text, file)
@@ -378,5 +410,51 @@ def delete(target: str = TARGET_ARG, rpid: int = RPID_ARG, type_: str = TYPE_OPT
         await comment.Comment(oid, rtype, rpid, credential=cred).delete()
         guard.record("delete", {"oid": oid, "type": type_, "rpid": rpid}, "ok")
         return {"rpid": rpid, "deleted": True}
+
+    run(body)
+
+
+EMOTE_SAMPLE = 8
+
+
+def summarize_emotes(packages: list[dict], keyword: str | None, package: str | None) -> dict[str, Any]:
+    """Packages with a few samples by default; every emote of one package, or every match of a keyword."""
+    def texts(emotes):
+        return [e.get("text") for e in emotes if e.get("text")]
+
+    if keyword:
+        k = keyword.lower()
+        hits = [e for p in packages for e in p.get("emote") or []
+                if k in (e.get("text") or "").lower() or k in ((e.get("meta") or {}).get("alias") or "").lower()]
+        return {"keyword": keyword, "emotes": texts(hits)}
+    if package:
+        for p in packages:
+            if package in (p.get("text"), str(p.get("id"))):
+                return {"package": p.get("text"), "emotes": texts(p.get("emote") or [])}
+        raise BiliError("not_found", f"没有名为 {package!r} 的表情包。", hint="不带参数运行 `bili comment emotes` 查看可用的表情包。")
+    return {
+        "packages": [{"name": p.get("text"), "count": len(p.get("emote") or []), "sample": texts(p.get("emote") or [])[:EMOTE_SAMPLE]}
+                     for p in packages],
+        "usage": "把表情文字原样写进评论或动态正文，如 `太强了[笑哭]`。看某个包的全部：--package 名称；按关键词找：-k 关键词。",
+    }
+
+
+@app.command()
+def emotes(
+    keyword: Optional[str] = typer.Option(None, "--keyword", "-k", help="按关键词找表情，如 笑、doge。"),
+    package: Optional[str] = typer.Option(None, "--package", "-p", help="列出某个表情包的全部表情，如 小黄脸、tv_小电视。"),
+    for_: str = typer.Option("reply", "--for", help="使用场景：reply（评论）/ dynamic（动态）。"),
+) -> None:
+    """当前账号能用的 B 站表情。默认只给每个表情包的几个示例，用 -k 搜索或 --package 看全部。"""
+
+    async def body():
+        from bilibili_api import emoji
+
+        if for_ not in ("reply", "dynamic"):
+            raise BiliError("invalid_argument", "--for 只能是 reply 或 dynamic。")
+        data = await emoji.get_emoji_list(for_, config.optional_credential())
+        if output.settings.raw:
+            return data
+        return summarize_emotes(data.get("packages") or [], keyword, package)
 
     run(body)

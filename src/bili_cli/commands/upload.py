@@ -412,6 +412,16 @@ async def _archive_view(cred: Credential, bvid: str) -> dict[str, Any]:
     return res.get("data") or {}
 
 
+def edit_blocker(view: dict[str, Any]) -> str | None:
+    """Why this archive must be edited on the web instead, or None. build_edit can't carry these settings."""
+    if ((view.get("reply") or {}).get("state") or 0) != 0:
+        return "这个稿件的评论区不是普通开放状态，命令行改稿可能把评论设置改回默认。"
+    # copyright is echoed back unchanged (the web uploader stores 3 even for solo uploads); staff lists are not
+    if view.get("staffs"):
+        return "这是联合投稿（有合作成员），命令行改稿不带成员名单，可能出错或把合作者移除。"
+    return None
+
+
 def build_edit(view: dict[str, Any], changes: dict[str, Any]) -> dict[str, Any]:
     """The edit endpoint replaces the whole archive, so start from what B 站 has now and apply the changes."""
     arc = view.get("archive") or {}
@@ -495,8 +505,8 @@ def edit(
         if not changes and cover is None and cover43 is None:
             raise BiliError("invalid_argument", "没有要修改的内容。", hint="传 --title / --desc / --tag / --cover / --cover43 / --ai-declare 中的至少一个。")
         view = await _archive_view(cred, bvid)
-        if ((view.get("reply") or {}).get("state") or 0) != 0:
-            raise BiliError("invalid_argument", "这个稿件的评论区不是普通开放状态，命令行改稿可能把评论设置改回默认。", hint="请在网页端创作中心修改这个稿件。")
+        if reason := edit_blocker(view):
+            raise BiliError("invalid_argument", reason, hint="请在网页端创作中心修改这个稿件。")
         if "tags" in changes and (bad := await _check_tags(cred, changes["tags"])):
             raise BiliError("invalid_argument", f"B 站不接受这些标签：{', '.join(bad)}", detail={"rejected_tags": bad})
         arc = view.get("archive") or {}

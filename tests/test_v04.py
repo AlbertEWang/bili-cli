@@ -146,3 +146,11 @@ def test_sub_second_frames_get_their_own_file_and_label():
     assert frames.frame_name(90.5) == "frame_000090_500.jpg"
     assert frames.fmt_time(90.5) == "1:30.5" and frames.fmt_time(3725) == "1:02:05"
     assert frames.plan_times(100, at=[27.0, 27.5]) == [27.0, 27.5]
+
+
+def test_edit_refuses_what_build_edit_cannot_preserve():
+    assert upload_cmd.edit_blocker(VIEW) is None
+    assert "评论区" in upload_cmd.edit_blocker({**VIEW, "reply": {"state": 1}})
+    web_upload = {**VIEW, "archive": {**VIEW["archive"], "copyright": 3}, "staffs": []}
+    assert upload_cmd.edit_blocker(web_upload) is None  # copyright 3 alone is fine: it is sent back as-is
+    assert "联合投稿" in upload_cmd.edit_blocker({**VIEW, "staffs": [{"apply_staff_mid": 2}]})

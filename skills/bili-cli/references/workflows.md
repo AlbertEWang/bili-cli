@@ -57,7 +57,9 @@ bili video triple <BV>                   # 一键三连（点赞 + 投币 + 收�
 
 ```bash
 bili owner set <主人UID>                         # 一次性设置
-bili comment post <BV> "看完的感想" --at owner    # 真正的 @，主人会收到提醒
+bili comment post <BV> "看完的感想" --at owner    # 真正的 @，主人会收到提醒；--at 也收 UID 或完整昵称，最多 3 个
+bili comment post <BV> "看图[doge]" --image shot.png   # 带图评论，最多 9 张；回复（楼中楼）B 站不允许带图
+bili comment emotes -k 笑                         # 找表情：把 [笑哭] 这类文字原样写进正文即可
 bili comment check <BV> <rpid>                   # 新号/敏感内容可能被折叠，确认一下
 bili comment pin <BV> <rpid>                     # 在自己的视频下置顶一条根评论（--undo 取消）
 ```
@@ -79,7 +81,7 @@ bili dm send owner "今天看到一个你可能喜欢的视频：BV…"
 ## 7. 发动态、投稿
 
 ```bash
-bili dynamic post "文字内容" --image cover.png
+bili dynamic post "文字内容" --image cover.png --at 冬冰   # 图文动态（最多 9 张），--at 真正 @ 人
 bili upload video demo.mp4 --title "标题" --tag AI --tag 教程 --desc-file desc.txt --private
 bili upload status <BV>        # 审核进度，以及 B 站实际记录的标签/分区/声明
 bili upload edit <BV> --title "新标题" --cover new.jpg --cover43 new43.jpg   # 改稿，没指定的设置保持不变
@@ -87,7 +89,7 @@ bili upload edit <BV> --title "新标题" --cover new.jpg --cover43 new43.jpg   
 
 投稿默认带“含AI生成内容”声明；`--private` 仅自己可见，适合先试；`--schedule 2026-10-25T20:00` 定时发布（需 2 小时到 15 天后）。分区由标题自动预测，预测不准时用 `bili upload zones` 查好再 `--zone`。封面有两张：`--cover` 是横版（16:9），`--cover43` 是手机端推荐流用的 4:3 版，两张都给效果最好。
 
-改稿（`upload edit`）会让稿件重新审核，审核期间新内容不生效；B 站可能丢弃个别标签，改完用 `upload status` 确认。评论区被关闭或精选的稿件请到网页端改。
+改稿（`upload edit`）会让稿件重新审核，审核期间新内容不生效；B 站可能丢弃个别标签，改完用 `upload status` 确认。评论区被关闭或精选的稿件、有合作成员的联合投稿请到网页端改（命令会直接拒绝）。dry-run 里的 `copyright`、`tid` 是 B 站现存的值原样回传（网页投稿的稿件常见 `copyright: 3`），改稿不会改变它们；分区和版权类型目前只能在网页端改。
 
 ## 8. UP 主运营工具
 

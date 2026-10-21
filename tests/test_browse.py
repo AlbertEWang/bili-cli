@@ -60,8 +60,6 @@ def test_mentions_resolve_owner_and_limit(monkeypatch):
     assert asyncio.run(comment_cmd._mentions(["owner", "7"])) == {"user42": 42, "user7": 7}
     with pytest.raises(BiliError):
         asyncio.run(comment_cmd._mentions(["1", "2", "3", "4"]))
-    with pytest.raises(BiliError):
-        asyncio.run(comment_cmd._mentions(["@someone"]))
 
 
 def test_device_id_is_stable():

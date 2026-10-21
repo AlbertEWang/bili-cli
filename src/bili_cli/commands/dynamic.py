@@ -11,7 +11,7 @@ from bilibili_api import Picture, dynamic, user
 from .. import config, guard, output
 from ..errors import BiliError
 from ..runtime import iso_time, read_text, run
-from .comment import TYPE_NAMES
+from .comment import AT_OPT, TYPE_NAMES, _mentions
 
 app = typer.Typer(help="动态：发布文字 / 图文动态、列出、删除。", no_args_is_help=True)
 
@@ -81,8 +81,9 @@ def post(
     file: Optional[Path] = typer.Option(None, "--file", "-f", help="从文件读取正文，`-` 表示 stdin。"),
     image: list[Path] = typer.Option([], "--image", "-i", help=f"图片路径，可重复传入，最多 {MAX_IMAGES} 张。"),
     topic: Optional[int] = typer.Option(None, "--topic", help="话题 ID。"),
+    at: list[str] = AT_OPT,
 ) -> None:
-    """发布一条文字或图文动态。"""
+    """发布一条文字或图文动态。--image 附图，--at 真正 @ 某人；表情直接写 [笑哭] 这类文字（见 `bili comment emotes --for dynamic`）。"""
 
     async def body():
         cred = config.require_credential()
@@ -92,11 +93,18 @@ def post(
         for p in image:
             if not p.is_file():
                 raise BiliError("invalid_argument", f"图片不存在：{p}")
-        params = {"text": content, "images": [str(p) for p in image], "topic": topic}
+        mentions = await _mentions(at)
+        params = {"text": content, "images": [str(p) for p in image], "topic": topic, "mentions": mentions or None}
         if output.settings.dry_run:
             return {"dry_run": True, "action": "dynamic.post", "params": params}
         pics = [Picture.from_file(str(p)) for p in image]
-        build = dynamic.BuildDynamic.create_by_args(text=content, pics=pics, topic_id=topic if topic else -1)
+        build = dynamic.BuildDynamic()
+        for name, mid in mentions.items():
+            if f"@{name}" not in content:  # already in the text: add_text turns it into a mention in place
+                build.add_at(mid, name).add_plain_text(" ")
+        build.add_text(content).add_image(pics)
+        if topic:
+            build.set_topic(topic)
         guard.check("dynamic")
         res = await dynamic.send_dynamic(build, cred)
         guard.record("dynamic", params, {"id": res.get("dyn_id_str") or res.get("dyn_id")})

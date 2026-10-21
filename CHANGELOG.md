@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+### Added
+- `bili comment post --image`：评论带图片，最多 9 张（B 站不允许回复带图）。
+- `bili comment emotes`：当前账号能用的 B 站表情，`-k` 搜索、`--package` 看整个表情包；表情文字直接写进正文即可。
+- `--at` 可以直接填完整昵称（原来只收 UID 或 owner）。
+- `bili dynamic post --at`：发动态时真正 @ 人。
+
+### Fixed
+- `bili upload edit` 拒绝修改有合作成员的联合投稿：改稿接口需要成员名单，原样提交可能出错或移除合作者。
+
 ## [0.4.0] - 2026-10-21
 
 ### Added

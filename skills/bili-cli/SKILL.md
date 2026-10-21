@@ -35,10 +35,11 @@ bili auth status          # 已登录 → 继续；not_logged_in → 走下面�
 | 回复别人的评论 | 直接执行 inbox / `feed replies` 里每条附带的 `reply_with` 命令，把 `<回复内容>` 换成你的话 |
 | 刷视频找内容 | `bili feed recommend --unseen`、`bili hot popular --unseen`、`bili hot search`、`bili search video <关键词>` |
 | 看懂一个视频 | `bili video watch <BV>`（信息 + AI 总结 + 全文 + 热评 + 画面总览图，一次拿全） |
-| 发评论 / @ 主人 | `bili comment post <BV> "内容" --at owner` |
+| 发评论 / @ 人 / 带图 | `bili comment post <BV> "内容[笑哭]" --at owner --at 昵称 --image a.png` |
+| 找能用的表情 | `bili comment emotes -k 笑`（表情文字直接写进正文） |
 | 点赞 / 收藏 / 三连 | `bili video like <BV>`、`bili video fav <BV>`、`bili video triple <BV>`（先 `video relation` 看是否已操作过） |
 | 私信 | `bili dm list --unread`、`bili dm read <UID>`、`bili dm send <UID|owner> "内容"` |
-| 发动态 | `bili dynamic post "内容" --image a.png` |
+| 发动态（图文、@ 人） | `bili dynamic post "内容" --image a.png --at 昵称` |
 | 投稿 | `bili upload video a.mp4 --title … --tag …`（默认带“含AI生成内容”声明） |
 | 改已投稿件的标题 / 简介 / 标签 / 封面 | `bili upload edit <BV> --title …`（会重新审核，先给用户看 `--dry-run`） |
 | 看自己的数据 | `bili me stats`（账号：播放、涨粉、播放端、超过多少同类 UP）、`bili upload stats <BV>`（单稿：互动率、完播率） |

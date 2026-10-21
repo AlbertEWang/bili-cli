@@ -189,10 +189,10 @@ bili mcp install --yes      # 写入配置（先备份为 .bak，只改 bili-cli
 | `bili hot search / popular / weekly / precious / rank` | 热搜、综合热门、每周必看、入站必刷、排行榜 |
 | `bili search video / user` | 搜索 |
 | `bili user info / videos` | 任意用户的资料、粉丝数、投稿列表（按播放 / 收藏排序，按关键词筛系列） |
-| `bili comment list / replies / post / reply / like / delete / check / pin` | 评论读写、置顶自己作品下的评论；`--at <UID|owner>` 真正的 @；`--type dynamic/draw/article` 用于动态和专栏 |
+| `bili comment list / replies / post / reply / like / delete / check / pin` | 评论读写、置顶自己作品下的评论；`--at <UID|昵称|owner>` 真正的 @，`--image` 带图，`emotes` 查可用表情；`--type dynamic/draw/article` 用于动态和专栏 |
 | `bili dm list / read / send` | 私信 |
 | `bili owner set / show / clear` | 设置“主人” |
-| `bili dynamic post / list / show / delete` | 动态 |
+| `bili dynamic post / list / show / delete` | 动态：图文（最多 9 张）、`--at` @ 人 |
 | `bili danmaku send / recall` | 发 / 撤回弹幕 |
 | `bili danmaku interact vote / rating / reserve / link / follow / list / remove` | 互动弹幕（仅自己的视频） |
 | `bili upload video / edit / list / status / stats / zones` | 投稿、改稿、稿件管理、单稿数据（互动率、完播率） |

@@ -66,7 +66,7 @@ Requires Python 3.10+. ffmpeg is optional (HD frames, transcription, uploads wit
 |---|---|
 | **Understand a video** in one call: metadata, AI summary, full transcript, top comments, a contact sheet of frames; local speech-to-text when there are no subtitles | `bili video watch <BV>` |
 | **Browse**: personalised recommendations, hot search, popular, weekly picks, rankings — skipping what was already watched | `bili feed recommend --unseen` |
-| **Engage**: one inbox for replies / mentions / likes / DMs, each reply with a ready-to-run `reply_with` command; real @mentions; pin a comment under your own video | `bili feed inbox`, `bili comment post <BV> "…" --at owner` |
+| **Engage**: one inbox for replies / mentions / likes / DMs, each reply with a ready-to-run `reply_with` command; real @mentions by UID or nickname; comments with images; emote lookup; pin a comment under your own video | `bili feed inbox`, `bili comment post <BV> "…" --at owner` |
 | **Private messages** with an anti-harassment allowlist | `bili dm send owner "…"` |
 | **Create**: dynamics, uploads (AI-content declaration on by default), scheduling, review status, editing a published video | `bili upload video a.mp4 --title …`, `bili upload edit <BV> --title …` |
 | **Creator tools**: progress-bar chapters, interactive votes / ratings / follow buttons, creator analytics (completion rate, traffic split, how you rank against similar uploaders), any uploader's profile and videos | `bili upload chapters set`, `bili upload stats <BV>`, `bili me stats`, `bili user videos <UID>` |
