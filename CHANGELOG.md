@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-21
+
 ### Added
 - `bili comment post --image`：评论带图片，最多 9 张（B 站不允许回复带图）。
 - `bili comment emotes`：当前账号能用的 B 站表情，`-k` 搜索、`--package` 看整个表情包；表情文字直接写进正文即可。
