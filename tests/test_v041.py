@@ -76,10 +76,9 @@ def test_desc_v2_marks_mentions_in_place_and_prepends_missing_ones():
 
 def test_edit_keeps_existing_desc_mentions_unless_the_text_changes():
     from bili_cli.commands import upload as upload_cmd
-    from tests.test_v04 import VIEW
 
-    v2 = [{"raw_text": "@冬冰", "type": 2, "biz_id": "7"}]
-    view = {**VIEW, "archive": {**VIEW["archive"], "desc": "@冬冰", "desc_v2": v2}}
+    v2 = [{"raw_text": "冬冰", "type": 2, "biz_id": "7"}]
+    view = {"archive": {"aid": 1, "title": "t", "desc": "@冬冰 ", "desc_v2": v2}, "videos": [], "reply": {"state": 0}}
     assert upload_cmd.build_edit(view, {"title": "new"})["desc_v2"] == v2
     assert upload_cmd.build_edit(view, {"desc": "新简介"})["desc_v2"] is None
 
