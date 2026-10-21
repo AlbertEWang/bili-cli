@@ -5,6 +5,8 @@
 <br>
 
 [![CI](https://github.com/kukemc/bili-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/kukemc/bili-cli/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/bili-agent?logo=pypi&logoColor=white&color=3775A9)](https://pypi.org/project/bili-agent/)
+[![Downloads](https://img.shields.io/pepy/dt/bili-agent?label=downloads&color=2EA44F)](https://pepy.tech/projects/bili-agent)
 ![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![Platform](https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-supported-555)
 ![Agent Skills](https://img.shields.io/badge/Agent%20Skills-ready-A46BFF)
