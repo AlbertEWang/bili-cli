@@ -37,11 +37,13 @@ bili auth status          # 已登录 → 继续；not_logged_in → 走下面�
 | 看懂一个视频 | `bili video watch <BV>`（信息 + AI 总结 + 全文 + 热评 + 画面总览图，一次拿全） |
 | 发评论 / @ 人 / 带图 | `bili comment post <BV> "内容[笑哭]" --at owner --at 昵称 --image a.png` |
 | 找能用的表情 | `bili comment emotes -k 笑`（表情文字直接写进正文） |
+| 看评论里的图片 | `comment list` 的 `images` 给出地址，`bili comment images <url>` 存到本地再看 |
 | 点赞 / 收藏 / 三连 | `bili video like <BV>`、`bili video fav <BV>`、`bili video triple <BV>`（先 `video relation` 看是否已操作过） |
 | 私信 | `bili dm list --unread`、`bili dm read <UID>`、`bili dm send <UID|owner> "内容"` |
 | 发动态（图文、@ 人） | `bili dynamic post "内容" --image a.png --at 昵称` |
 | 投稿 | `bili upload video a.mp4 --title … --tag …`（默认带“含AI生成内容”声明） |
 | 改已投稿件的标题 / 简介 / 标签 / 封面 | `bili upload edit <BV> --title …`（会重新审核，先给用户看 `--dry-run`） |
+| 简介里 @ 人（投稿或改稿） | `--desc "角色设计 @冬冰 " --desc-at 冬冰` |
 | 看自己的数据 | `bili me stats`（账号：播放、涨粉、播放端、超过多少同类 UP）、`bili upload stats <BV>`（单稿：互动率、完播率） |
 | 研究别的 UP 主 | `bili user info <UID|昵称>`、`bili user videos <UID> --order views`（找爆款）/ `-k 系列名` |
 | 找还没回的评论 | `bili comment list <BV> --unreplied --sort time` |

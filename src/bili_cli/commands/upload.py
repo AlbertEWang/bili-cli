@@ -44,6 +44,8 @@ CARD_TYPE_CHAPTER = 2
 
 TITLE_MAX = 80
 DESC_MAX = 2000
+DESC_AT_OPT = typer.Option([], "--desc-at", help="简介里要 @ 的人：UID、完整昵称或 owner，可重复传入，最多 10 个；简介里没写 @昵称 时会加在开头。")
+DESC_MENTIONS_MAX = 10
 DYNAMIC_MAX = 233
 TAGS_MAX = 10
 SCHEDULE_MIN_SECONDS = 2 * 3600  # Bilibili accepts scheduled publishing 2 h to 15 days ahead
@@ -186,6 +188,7 @@ def video_(
     tag: list[str] = typer.Option(..., "--tag", help=f"标签，可重复传入，1 到 {TAGS_MAX} 个。"),
     desc: Optional[str] = typer.Option(None, "--desc", help=f"简介，最多 {DESC_MAX} 字。"),
     desc_file: Optional[Path] = typer.Option(None, "--desc-file", help="从文件读取简介，`-` 表示 stdin。"),
+    desc_at: list[str] = DESC_AT_OPT,
     cover: Optional[Path] = typer.Option(None, "--cover", help="封面图片；不传则用 ffmpeg 从视频截取一帧。"),
     cover43: Optional[Path] = typer.Option(
         None, "--cover43", help="4:3 封面（手机端推荐流用这一张）；不传则由 B 站从横版封面处理。"
@@ -223,6 +226,7 @@ def video_(
         if not 1 <= len(tags) <= TAGS_MAX:
             raise BiliError("invalid_argument", f"标签需为 1 到 {TAGS_MAX} 个。")
         description = read_text(desc, desc_file) if (desc is not None or desc_file is not None) else ""
+        description, desc_v2 = build_desc_v2(description, await _desc_mentions(desc_at))
         if len(description) > DESC_MAX:
             raise BiliError("invalid_argument", f"简介最多 {DESC_MAX} 字。")
         if dynamic and len(dynamic) > DYNAMIC_MAX:
@@ -279,6 +283,8 @@ def video_(
         }
         if zone.get("zone"):
             meta["human_type2"] = zone["zone"]
+        if desc_v2:
+            meta["desc_v2"] = desc_v2
         if repost:
             meta["source"] = repost
         if dtime:
@@ -412,6 +418,49 @@ async def _archive_view(cred: Credential, bvid: str) -> dict[str, Any]:
     return res.get("data") or {}
 
 
+
+
+def build_desc_v2(desc: str, mentions: dict[str, int]) -> tuple[str, list[dict[str, Any]] | None]:
+    """Plain description plus the segmented desc_v2 the web uploader sends, so @name becomes a real mention.
+
+    B 站 rejects the pair (21010) unless desc equals desc_v2 rendered with each mention as "@name "
+    (trailing space included), so one space after a mention in the input is folded into it.
+    """
+    if not mentions:
+        return desc, None
+    desc = "".join(f"@{name} " for name in mentions if f"@{name}" not in desc) + desc
+    marks = sorted((i, name) for name in mentions for i in _find_all(desc, f"@{name}"))
+    segments: list[dict[str, Any]] = []
+    pos = 0
+    for i, name in marks:
+        if i < pos:  # overlapping names: keep the earlier match
+            continue
+        if i > pos:
+            segments.append({"raw_text": desc[pos:i], "type": 1, "biz_id": ""})
+        segments.append({"raw_text": name, "type": 2, "biz_id": str(mentions[name])})  # the name without "@"
+        pos = i + len(name) + 1
+        if desc[pos:pos + 1] == " ":
+            pos += 1
+    if pos < len(desc):
+        segments.append({"raw_text": desc[pos:], "type": 1, "biz_id": ""})
+    rendered = "".join(s["raw_text"] if s["type"] == 1 else f"@{s['raw_text']} " for s in segments)
+    return rendered, segments
+
+
+def _find_all(text: str, needle: str) -> list[int]:
+    out, i = [], text.find(needle)
+    while i != -1:
+        out.append(i)
+        i = text.find(needle, i + len(needle))
+    return out
+
+
+async def _desc_mentions(values: list[str]) -> dict[str, int]:
+    from .comment import _mentions
+
+    return await _mentions(values, limit=DESC_MENTIONS_MAX)
+
+
 def edit_blocker(view: dict[str, Any]) -> str | None:
     """Why this archive must be edited on the web instead, or None. build_edit can't carry these settings."""
     if ((view.get("reply") or {}).get("state") or 0) != 0:
@@ -436,6 +485,7 @@ def build_edit(view: dict[str, Any], changes: dict[str, Any]) -> dict[str, Any]:
         "tag": arc.get("tag"),
         "desc_format_id": arc.get("desc_format_id") or 9999,
         "desc": arc.get("desc") or "",
+        "desc_v2": arc.get("desc_v2"),  # @mentions in the description; dropped only when the text is replaced
         "recreate": (arc.get("recreate") or {}).get("switch", -1),
         "dynamic": arc.get("dynamic") or "",
         "interactive": arc.get("interactive") or 0,
@@ -465,6 +515,8 @@ def build_edit(view: dict[str, Any], changes: dict[str, Any]) -> dict[str, Any]:
     for key in ("title", "desc", "cover", "cover43"):
         if key in changes:
             body[key] = changes[key]
+    if "desc" in changes:
+        body["desc_v2"] = changes.get("desc_v2")
     return body
 
 
@@ -474,6 +526,7 @@ def edit(
     title: Optional[str] = typer.Option(None, "--title", help=f"新标题，最多 {TITLE_MAX} 字。"),
     desc: Optional[str] = typer.Option(None, "--desc", help=f"新简介，最多 {DESC_MAX} 字。"),
     desc_file: Optional[Path] = typer.Option(None, "--desc-file", help="从文件读取新简介，`-` 表示 stdin。"),
+    desc_at: list[str] = DESC_AT_OPT,
     tag: Optional[list[str]] = typer.Option(None, "--tag", help=f"新标签（整体替换），可重复传入，1 到 {TAGS_MAX} 个。"),
     cover: Optional[Path] = typer.Option(None, "--cover", help="新封面图片。"),
     cover43: Optional[Path] = typer.Option(None, "--cover43", help="新的 4:3 封面（手机端推荐流）。"),
@@ -502,17 +555,24 @@ def edit(
                 raise BiliError("invalid_argument", f"封面文件不存在：{path}")
         if ai_declare is not None:
             changes["ai_declare"] = ai_declare
-        if not changes and cover is None and cover43 is None:
-            raise BiliError("invalid_argument", "没有要修改的内容。", hint="传 --title / --desc / --tag / --cover / --cover43 / --ai-declare 中的至少一个。")
+        if not changes and cover is None and cover43 is None and not desc_at:
+            raise BiliError("invalid_argument", "没有要修改的内容。", hint="传 --title / --desc / --desc-at / --tag / --cover / --cover43 / --ai-declare 中的至少一个。")
+        desc_mentions = await _desc_mentions(desc_at)
         view = await _archive_view(cred, bvid)
         if reason := edit_blocker(view):
             raise BiliError("invalid_argument", reason, hint="请在网页端创作中心修改这个稿件。")
         if "tags" in changes and (bad := await _check_tags(cred, changes["tags"])):
             raise BiliError("invalid_argument", f"B 站不接受这些标签：{', '.join(bad)}", detail={"rejected_tags": bad})
         arc = view.get("archive") or {}
+        if desc_mentions:  # applies to the new description, or to the current one when only --desc-at is given
+            changes["desc"], changes["desc_v2"] = build_desc_v2(changes.get("desc", arc.get("desc") or ""), desc_mentions)
+            if len(changes["desc"]) > DESC_MAX:
+                raise BiliError("invalid_argument", f"加上 @ 后简介超过 {DESC_MAX} 字。")
         before = {"title": arc.get("title"), "desc": arc.get("desc"), "tags": [t for t in (arc.get("tag") or "").split(",") if t],
                   "ai_declare": (arc.get("creation_statement") or {}).get("id") == STATEMENT_AI}
-        diff = {k: {"from": before[k], "to": v} for k, v in changes.items() if before.get(k) != v}
+        diff = {k: {"from": before[k], "to": v} for k, v in changes.items() if k != "desc_v2" and before.get(k) != v}
+        if desc_mentions:
+            diff["desc_at"] = {"to": desc_mentions}
         if cover:
             diff["cover"] = {"to": str(cover)}
         if cover43:

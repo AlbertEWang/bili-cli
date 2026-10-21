@@ -99,13 +99,13 @@ $ bili dm send owner "今天科技区第二名很有意思：有人造了一块�
 ### 💬 像 UP 主一样社交
 - **一个收件箱**看完回复、@、赞、系统通知、私信，每条回复都附带可直接执行的回复命令
 - **真正的 @**：对方会收到提醒（不是在正文里写个“@昵称”），填 UID 或昵称都行
-- **带图评论、B 站表情**：评论可以附图；`bili comment emotes` 查当前账号能用的表情，`[笑哭]` 直接写进正文
+- **带图评论、B 站表情**：评论可以附图，也能看到别人评论里的图（存到本地交给多模态模型看）；`bili comment emotes` 查当前账号能用的表情，`[笑哭]` 直接写进正文
 - **不漏回复**：`--unreplied` 只列还没回过的评论；自己作品下的评论可以**置顶**
 - **私信**：读会话、回私信，有新发现直接**私信汇报给主人**
 - 发出去之后还能**检查评论是否被折叠**，新号也心里有数
 
 ### 🎨 自己发内容
-图文动态（最多 9 张图，可以 @ 人）、视频投稿（**自动预测分区、自动截取封面、单独的 4:3 封面、定时发布、仅自己可见**），并默认勾选 **“含AI生成内容”声明**；投完还能查审核状态，看 B 站实际记录的标签和分区，发现标题、封面、标签不满意可以直接**改稿**。
+图文动态（最多 9 张图，可以 @ 人）、视频投稿（**自动预测分区、自动截取封面、单独的 4:3 封面、定时发布、仅自己可见**），并默认勾选 **“含AI生成内容”声明**；投完还能查审核状态，看 B 站实际记录的标签和分区，发现标题、封面、标签不满意可以直接**改稿**；简介里也能真正 **@ 合作者**（`--desc-at`）。
 
 ### 📊 看数据、做复盘
 - **单条稿件**：播放、每百次播放的点赞 / 收藏 / 投币率、**完播率、平均观看时长**
@@ -197,13 +197,13 @@ bili mcp install --yes      # 写入配置（先备份为 .bak，只改 bili-cli
 | `bili hot search / popular / weekly / precious / rank` | 热搜、综合热门、每周必看、入站必刷、排行榜 |
 | `bili search video / user` | 搜索 |
 | `bili user info / videos` | 任意用户的资料、粉丝数、投稿列表（按播放 / 收藏排序，按关键词筛系列）；动态用 `bili dynamic list --mid` |
-| `bili comment list / replies / post / reply / like / delete / check / pin / emotes` | 评论读写、`--unreplied` 只看没回过的、置顶自己作品下的评论；`--at <UID|昵称|owner>` 真正的 @，`--image` 带图，`emotes` 查可用表情；`--type dynamic/draw/article` 用于动态和专栏 |
+| `bili comment list / replies / post / reply / like / delete / check / pin / emotes / images` | 评论读写、`--unreplied` 只看没回过的、置顶自己作品下的评论；`--at <UID|昵称|owner>` 真正的 @，`--image` 带图，`emotes` 查可用表情；`--type dynamic/draw/article` 用于动态和专栏 |
 | `bili dm list / read / send` | 私信 |
 | `bili owner set / show / clear` | 设置“主人” |
 | `bili dynamic post / list / show / delete` | 动态：图文（最多 9 张）、`--at` @ 人 |
 | `bili danmaku send / recall` | 发 / 撤回弹幕 |
 | `bili danmaku interact vote / rating / reserve / link / follow / list / remove` | 互动弹幕（仅自己的视频） |
-| `bili upload video / edit / list / status / stats / zones` | 投稿、改稿、稿件管理、单稿数据（互动率、完播率） |
+| `bili upload video / edit / list / status / stats / zones` | 投稿、改稿（`--desc-at` 简介里 @ 人）、稿件管理、单稿数据（互动率、完播率） |
 | `bili upload chapters show / set / clear` | 分段章节 |
 | `bili me show / stats / set-sign / set-name / set-avatar` | 个人资料、创作中心数据 |
 | `bili asr setup local / setup cloud / status / use` | 语音转写引擎 |

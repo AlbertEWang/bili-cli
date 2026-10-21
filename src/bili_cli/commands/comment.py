@@ -47,6 +47,14 @@ def resolve_target(target: str, type_: str) -> tuple[int, comment.CommentResourc
     return int(target), RESOURCE_TYPES[type_]
 
 
+def _https(url: str) -> str:
+    return "https:" + url[5:] if url.startswith("http:") else ("https:" + url if url.startswith("//") else url)
+
+
+def comment_images(r: dict[str, Any]) -> list[str]:
+    return [_https(p["img_src"]) for p in (r.get("content") or {}).get("pictures") or [] if p.get("img_src")]
+
+
 def _reply(r: dict[str, Any], with_children: bool = True) -> dict[str, Any]:
     member = r.get("member") or {}
     item: dict[str, Any] = {
@@ -59,6 +67,8 @@ def _reply(r: dict[str, Any], with_children: bool = True) -> dict[str, Any]:
         "reply_count": r.get("rcount"),
         "time": iso_time(r.get("ctime")),
     }
+    if images := comment_images(r):
+        item["images"] = images  # view them with `bili comment images <url>…`
     if with_children and r.get("replies"):
         item["replies_preview"] = [_reply(c, with_children=False) for c in r["replies"]]
     return item
@@ -149,13 +159,13 @@ IMAGE_OPT = typer.Option([], "--image", "-i", help="随评论发的图片路径�
 MAX_IMAGES = 9
 
 
-async def _mentions(values: list[str]) -> dict[str, int]:
+async def _mentions(values: list[str], limit: int = MAX_MENTIONS) -> dict[str, int]:
     """Resolve --at values to {exact current nickname: mid}; the web client sends this as at_name_to_mid."""
     from .owner import resolve_user
     from .user import resolve_mid
 
-    if len(values) > MAX_MENTIONS:
-        raise BiliError("invalid_argument", f"一条评论最多 @ {MAX_MENTIONS} 个人。")
+    if len(values) > limit:
+        raise BiliError("invalid_argument", f"最多 @ {limit} 个人。")
     out: dict[str, int] = {}
     for v in values:
         if v == "owner":
@@ -456,5 +466,53 @@ def emotes(
         if output.settings.raw:
             return data
         return summarize_emotes(data.get("packages") or [], keyword, package)
+
+    run(body)
+
+
+IMAGE_HOST = "hdslb.com"
+IMAGE_MAX_SIDE = 1280
+
+
+def image_path(url: str, out_dir: Path) -> Path:
+    import hashlib
+
+    return out_dir / f"{hashlib.sha1(url.encode()).hexdigest()[:16]}.jpg"
+
+
+@app.command()
+def images(
+    urls: list[str] = typer.Argument(..., help="评论里的图片地址（`comment list` 输出的 images），可传多个。"),
+    out: Optional[Path] = typer.Option(None, "--out", help="保存目录，默认在配置目录的 images/ 下。"),
+) -> None:
+    """把评论里的图片存到本地（长边缩到 1280 像素），返回文件路径，方便多模态模型直接看图。只接受 B 站图床的地址。"""
+
+    async def body():
+        from io import BytesIO
+        from urllib.parse import urlparse
+
+        from PIL import Image
+
+        from ..runtime import web_client
+
+        for u in urls:
+            host = urlparse(_https(u)).hostname or ""
+            if not (host == IMAGE_HOST or host.endswith("." + IMAGE_HOST)):
+                raise BiliError("invalid_argument", f"只接受 B 站图床（{IMAGE_HOST}）的图片地址，收到 {u!r}。")
+        out_dir = (out or config.home() / "images").resolve()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        saved = []
+        async with web_client() as client:
+            for u in urls:
+                path = image_path(_https(u), out_dir)
+                if not path.exists():
+                    resp = await client.get(_https(u))
+                    resp.raise_for_status()
+                    img = Image.open(BytesIO(resp.content))
+                    img.thumbnail((IMAGE_MAX_SIDE, IMAGE_MAX_SIDE))
+                    img.convert("RGB").save(path, quality=88)
+                with Image.open(path) as im:
+                    saved.append({"url": _https(u), "path": str(path), "size": f"{im.width}x{im.height}"})
+        return {"images": saved}
 
     run(body)
