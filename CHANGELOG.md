@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-21
+
 ### Added
 - 评论列表带上图片地址（`images`）；`bili comment images <url>` 把评论图片存到本地（长边 1280），方便多模态模型直接看图，只接受 B 站图床地址。
 - `bili upload video / edit --desc-at`：简介里真正 @ 人（B 站按对方 UID 记录成 @，和网页投稿一样），最多 10 个。
