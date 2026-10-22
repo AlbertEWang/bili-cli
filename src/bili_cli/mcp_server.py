@@ -144,11 +144,16 @@ def build_server():
         _flag(args, "--dry-run", dry_run)
         return _call_with_stdin(args, text)
 
-    @server.tool(annotations=write, description="发布文字 / 图文动态。images 为本地图片路径列表（最多 9 张）；at: 要 @ 的 UID / 完整昵称 / 'owner'。")
-    def post_dynamic(text: str, images: list[str] | None = None, at: list[str] | None = None, dry_run: bool = False) -> dict:
+    @server.tool(annotations=write, description="发布文字 / 图文动态。images 为本地图片路径列表（最多 9 张）；at: 要 @ 的 UID / 完整昵称 / 'owner'；"
+        "vote_title + vote_options（2 到 20 个）附带投票，vote_multi 每人最多选几项，vote_days 持续天数。")
+    def post_dynamic(text: str, images: list[str] | None = None, at: list[str] | None = None, vote_title: str | None = None,
+                     vote_options: list[str] | None = None, vote_multi: int = 1, vote_days: int = 7, dry_run: bool = False) -> dict:
         args = ["dynamic", "post", "--file", "-"]
         _flag(args, "--image", images or [])
         _flag(args, "--at", at or [])
+        if vote_title:
+            args += ["--vote", vote_title, "--vote-multi", str(vote_multi), "--vote-days", str(vote_days)]
+            _flag(args, "--option", vote_options or [])
         _flag(args, "--dry-run", dry_run)
         return _call_with_stdin(args, text)
 

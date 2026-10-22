@@ -26,6 +26,8 @@ LIMITS: dict[str, tuple[int, int]] = {
     "profile": (30, 10),
     "upload": (300, 5),
     "upload_edit": (60, 10),
+    "season": (10, 20),
+    "autoreply": (10, 20),
     # B 站 throttles interactive components harder than plain danmaku (36703 within a minute).
     "interact": (30, 20),
     "dm": (10, 20),

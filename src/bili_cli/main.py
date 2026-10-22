@@ -13,7 +13,7 @@ except ImportError:  # pragma: no cover - older typer depends on click directly
     from click.exceptions import UsageError
 
 from . import __version__, output
-from .commands import asr, auth, comment, danmaku, dm, dynamic, feed, hot, mcp, me, owner, search, skills, upload, user, video
+from .commands import asr, auth, comment, danmaku, dm, dynamic, feed, hot, mcp, me, owner, search, season, skills, upload, user, video
 from .errors import ERROR_TABLE, BiliError
 from .runtime import run
 
@@ -39,6 +39,7 @@ app.add_typer(danmaku.app, name="danmaku")
 app.add_typer(me.app, name="me")
 app.add_typer(dynamic.app, name="dynamic")
 app.add_typer(upload.app, name="upload")
+app.add_typer(season.app, name="season")
 app.add_typer(asr.app, name="asr")
 app.add_typer(hot.app, name="hot")
 app.add_typer(dm.app, name="dm")

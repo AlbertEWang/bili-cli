@@ -197,3 +197,8 @@ def send(
         return {**params, "sent": True, "msg_key": (res or {}).get("msg_key")}
 
     run(body)
+
+
+from .autoreply import app as _autoreply_app  # noqa: E402
+
+app.add_typer(_autoreply_app, name="autoreply")

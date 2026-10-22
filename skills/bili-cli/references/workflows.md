@@ -83,6 +83,20 @@ bili dm send owner "今天看到一个你可能喜欢的视频：BV…"
 
 ```bash
 bili dynamic post "文字内容" --image cover.png --at 冬冰   # 图文动态（最多 9 张），--at 真正 @ 人
+bili dynamic post "下期做什么？" --vote "下期内容" --option 安装教程 --option 接管评论区 --vote-days 7   # 投票动态
+bili dynamic vote <vote_id>                          # 投票结果（vote_id 在动态卡片的 vote 里）
+
+# 合集
+bili season list                                     # 我的合集、小节和里面的视频
+bili season create "大肥鱼日常" --cover c.jpg --desc "…"   # 新建（必须有封面，会人工审核）
+bili season add <合集ID> BV1xx BV1yy                 # 把自己的视频加进合集（默认第一个小节，--section 指定）
+bili season remove <合集ID> BV1xx                    # 移出；bili season delete <合集ID> 删除整个合集
+
+# 私信自动回复（B 站自带，1000 粉以上；由 B 站发出，Agent 不在线也生效，对同一人一天一次）
+bili dm autoreply show                               # 开关、内容、关键词规则
+bili dm autoreply set follow "感谢关注！"              # follow / message / voyage，会同时打开开关
+bili dm autoreply keyword add "教程在这里…" --name 教程 --fuzzy 教程 --fuzzy 怎么装
+bili dm autoreply off message                        # 关开关；keyword delete <id> 删规则
 bili upload video demo.mp4 --title "标题" --tag AI --tag 教程 --desc-file desc.txt --private
 bili upload status <BV>        # 审核进度，以及 B 站实际记录的标签/分区/声明
 bili upload edit <BV> --title "新标题" --cover new.jpg --cover43 new43.jpg   # 改稿，没指定的设置保持不变
