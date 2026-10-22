@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-23
+
+### Added
+- `bili upload video --topic`：给稿件挂话题，填话题名或 ID；官方有奖活动的话题会顺带报名（带上活动的 mission_id）。
+- `bili upload video --reserve`：定时发布时同时开启视频预约，空间和动态出现预约卡片，粉丝预约后发布时收到提醒。
+- `bili upload video --season <合集ID>`：投稿后直接加进合集，和网页投稿一样。
+
+### Changed
+- `bili season add` 和 `bili danmaku interact`（投票、关联视频、关注按钮等）改从创作中心读取自己的稿件，审核中、定时发布还没公开的稿件也能用；之前会报 -404。
+
+### Fixed
+- `bili auth status --wait 120`：秒数参数被当成全局 `--wait` 吞掉的问题。
+- `bili dynamic list` 遇到带投票的动态会崩溃（B 站把投票截止时间返回成字符串）。
+
 ## [0.6.0] - 2026-10-22
 
 ### Added
