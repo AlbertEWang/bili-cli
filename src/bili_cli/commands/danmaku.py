@@ -120,7 +120,22 @@ MIN_COMPONENT_MS = 5000
 
 
 async def own_video_page(video_id: str, page: int, cred) -> tuple[dict, dict]:
-    v = video.Video(**parse_video_id(video_id), credential=cred)
+    ref = parse_video_id(video_id)
+    if ref.get("bvid"):
+        # creator-side view first: it also covers my videos that are still in review or scheduled
+        from .upload import _archive_view
+
+        try:
+            view = await _archive_view(cred, ref["bvid"])
+        except Exception:
+            view = None
+        if view and (view.get("archive") or {}).get("aid"):
+            arc = view["archive"]
+            pages = [{"cid": x.get("cid"), "duration": x.get("duration") or 0} for x in view.get("videos") or []]
+            if page > len(pages):
+                raise BiliError("invalid_argument", f"该视频只有 {len(pages)} 个分 P。")
+            return {"aid": arc["aid"], "bvid": arc.get("bvid"), "owner": {"mid": arc.get("mid")}}, pages[page - 1]
+    v = video.Video(**ref, credential=cred)
     info = await v.get_info()
     if str((info.get("owner") or {}).get("mid")) != str(cred.dedeuserid):
         raise BiliError("invalid_argument", "互动弹幕只能加在自己的视频里。")

@@ -137,6 +137,21 @@ async def _preflight(cred: Credential, video: Path) -> None:
     raise BiliError("risk_control" if resp.status_code in (406, 412) else "api_error", f"B 站拒绝了上传：{message}", detail=detail)
 
 
+TOPIC_SEARCH_URL = "https://member.bilibili.com/x/vupre/web/topic/search"
+
+
+async def find_topic(cred: Credential, query: str) -> dict[str, Any]:
+    """Resolve a topic by exact name (spaces ignored) or ID; activity topics carry a mission_id that enters the contest."""
+    async with web_client(cred, referer="https://member.bilibili.com/") as client:
+        resp = await client.get(TOPIC_SEARCH_URL, params={"keywords": query, "page_size": 20, "offset": 0})
+    topics = ((resp.json().get("data") or {}).get("result") or {}).get("topics") or []
+    norm = lambda s: str(s).replace(" ", "").lower()
+    for t in topics:
+        if norm(t.get("name")) == norm(query) or str(t.get("id")) == query.strip():
+            return {"id": t.get("id"), "name": t.get("name"), "mission_id": t.get("mission_id") or None, "activity": t.get("activity_sign") or None}
+    raise BiliError("not_found", f"找不到话题 {query!r}。", detail={"candidates": [t.get("name") for t in topics[:8]]})
+
+
 def _extract_cover(video: Path) -> Path:
     if not shutil.which("ffmpeg"):
         raise BiliError("invalid_argument", "未指定 --cover，且系统中没有 ffmpeg，无法自动截取封面。", hint="用 --cover 指定封面图片，或安装 ffmpeg。")
@@ -203,6 +218,9 @@ def video_(
     ),
     private: bool = typer.Option(False, "--private", help="仅自己可见（适合测试）。"),
     schedule: Optional[str] = typer.Option(None, "--schedule", help="定时发布，ISO 时间（默认北京时间），需在 2 小时到 15 天之后。"),
+    topic: Optional[str] = typer.Option(None, "--topic", help="投稿话题（含官方活动话题，如“AI MV 大赛”）：填话题名或话题 ID；有奖活动会自动报名。"),
+    season: Optional[int] = typer.Option(None, "--season", help="投稿后直接加进这个合集（合集 ID，见 `bili season list`），加在第一个小节末尾。"),
+    reserve: bool = typer.Option(False, "--reserve", help="同时开启视频预约（需配合 --schedule）：空间和动态出现预约卡片，粉丝可预约、发布时收到提醒。"),
     dynamic: Optional[str] = typer.Option(None, "--dynamic", help=f"同步发布的粉丝动态文字，最多 {DYNAMIC_MAX} 字。"),
     no_reprint: bool = typer.Option(False, "--no-reprint", help="声明未经授权禁止转载。"),
     close_comments: bool = typer.Option(False, "--close-comments", help="关闭评论。"),
@@ -238,6 +256,9 @@ def video_(
             except ValueError as exc:
                 raise BiliError("invalid_argument", "--line 只能是 bda2 / qn / ws / bldsa。") from exc
         dtime = _parse_schedule(schedule)
+        topic_info = await find_topic(cred, topic) if topic else None
+        if reserve and not dtime:
+            raise BiliError("invalid_argument", "--reserve 需要配合 --schedule 定时发布使用。")
 
         zone: dict[str, Any] = {"tid": tid, "tid_name": None, "zone": zone_id, "zone_name": None}
         if tid is None or zone_id is None:
@@ -287,8 +308,13 @@ def video_(
             meta["desc_v2"] = desc_v2
         if repost:
             meta["source"] = repost
+        if topic_info:
+            meta["topic_id"] = topic_info["id"]
+            if topic_info.get("mission_id"):
+                meta["mission_id"] = topic_info["mission_id"]
         if dtime:
             meta["dtime"] = dtime
+            meta["act_reserve_create"] = 1 if reserve else 0
 
         summary = {
             "files": [str(f) for f in files],
@@ -298,10 +324,18 @@ def video_(
             "ai_declare": ai_declare,
             "private": private,
             "schedule": iso_time(dtime),
+            "reserve": reserve,
+            "topic": topic_info,
             "copyright": "repost" if repost else "original",
             "cover": str(cover) if cover else "auto (ffmpeg)",
             "cover43": str(cover43) if cover43 else None,
         }
+        section_id = None
+        if season is not None:
+            from .season import _section_of
+
+            section_id = await _section_of(cred, season, None)  # fail before uploading if the season is wrong
+            summary["season"] = {"id": season, "section_id": section_id}
         if output.settings.dry_run:
             return {"dry_run": True, "action": "upload.video", "params": summary, "meta": meta}
 
@@ -318,6 +352,17 @@ def video_(
         res = await uploader.start()
         result = {"bvid": res.get("bvid"), "aid": res.get("aid"), "url": f"https://www.bilibili.com/video/{res.get('bvid')}"}
         guard.record("upload", summary, result)
+        if season is not None:
+            # same as the web uploader: submit first, then add the new archive to the season
+            from .season import add_episodes, own_episode
+
+            try:
+                await add_episodes(cred, section_id, [await own_episode(cred, res.get("bvid"))])
+                result["season_added"] = True
+            except Exception as exc:  # the upload itself succeeded; don't report it as failed
+                result["season_added"] = False
+                result["season_error"] = str(exc)
+                result["season_hint"] = f"稍后运行 `bili season add {season} {res.get('bvid')}`。"
         return {
             **result,
             **summary,

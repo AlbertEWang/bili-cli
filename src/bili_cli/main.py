@@ -135,7 +135,9 @@ def _hoist_global_flags(argv: list[str]) -> list[str]:
         if arg == "--":
             rest.extend(argv[i:])
             break
-        (head if arg in GLOBAL_FLAGS else rest).append(arg)
+        # `auth status --wait 120` has its own --wait that takes seconds; leave that one to the subcommand
+        own_value = arg == "--wait" and i + 1 < len(argv) and argv[i + 1].isdigit()
+        (head if arg in GLOBAL_FLAGS and not own_value else rest).append(arg)
     return head + rest
 
 

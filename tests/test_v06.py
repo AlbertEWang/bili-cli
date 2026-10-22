@@ -51,3 +51,16 @@ def test_autoreply_summary_and_rules():
         ar.build_rule("空", [], [], "x")
     with pytest.raises(BiliError):
         ar.build_rule("长", ["a"], [], "x" * 501)
+
+
+def test_global_wait_does_not_swallow_auth_status_wait_seconds():
+    from bili_cli.main import _hoist_global_flags
+    assert _hoist_global_flags(["auth", "status", "--wait", "120"]) == ["auth", "status", "--wait", "120"]
+    assert _hoist_global_flags(["comment", "post", "BV1", "hi", "--wait"]) == ["--wait", "comment", "post", "BV1", "hi"]
+
+
+def test_iso_time_accepts_numeric_strings():
+    from bili_cli.runtime import iso_time
+
+    assert iso_time("1792902428") == iso_time(1792902428)
+    assert iso_time("0") is None and iso_time("") is None and iso_time(None) is None

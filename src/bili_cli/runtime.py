@@ -88,10 +88,11 @@ def parse_video_id(value: str) -> dict[str, Any]:
     raise BiliError("invalid_argument", f"无法识别的视频 ID：{value!r}，支持 BV 号、av 号或视频链接。")
 
 
-def iso_time(ts: int | float | None) -> str | None:
-    if not ts:
+def iso_time(ts: int | float | str | None) -> str | None:
+    # some endpoints (dynamic vote cards) send timestamps as numeric strings
+    if not ts or not str(ts).lstrip("-").replace(".", "", 1).isdigit() or float(ts) == 0:
         return None
-    return datetime.fromtimestamp(ts, CST).isoformat()
+    return datetime.fromtimestamp(float(ts), CST).isoformat()
 
 
 _TAG_RE = re.compile(r"<[^>]+>")

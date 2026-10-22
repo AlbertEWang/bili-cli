@@ -64,6 +64,35 @@ async def _section_of(cred, season_id: int, section_id: int | None) -> int:
 SECTION_OPT = typer.Option(None, "--section", help="小节 ID（合集分了小节时用）；默认第一个小节。")
 
 
+async def own_episode(cred, video_id: str) -> dict[str, Any]:
+    """aid / cid / title of one of my videos, read from the creator side so reviewing and scheduled videos work too
+    (the public view API answers -404 until a video is published)."""
+    from bilibili_api import video
+
+    from .upload import _archive_view
+
+    ref = parse_video_id(video_id)
+    if ref.get("bvid"):
+        try:
+            view = await _archive_view(cred, ref["bvid"])
+        except Exception as exc:  # not mine, or no such archive
+            raise BiliError("invalid_argument", f"{ref['bvid']} 不是你自己的稿件，或者稿件不存在。", detail={"error": str(exc)}) from exc
+        arc, pages = view.get("archive") or {}, view.get("videos") or []
+        if not pages or not pages[0].get("cid"):
+            raise BiliError("api_error", f"{ref['bvid']} 还没有分 P 信息，稍后再试。")
+        return {"title": arc.get("title"), "aid": arc.get("aid"), "cid": pages[0]["cid"], "charging_pay": 0}
+    info = await video.Video(**ref, credential=cred).get_info()
+    if info.get("owner", {}).get("mid") != int(cred.dedeuserid):
+        raise BiliError("invalid_argument", f"{info.get('bvid')} 不是你自己的视频，不能加进你的合集。")
+    return {"title": info.get("title"), "aid": info.get("aid"), "cid": info.get("cid"), "charging_pay": 0}
+
+
+async def add_episodes(cred, section_id: int, episodes: list[dict[str, Any]]) -> None:
+    await _api("season/section/episodes/add", "POST", cred, json_body=True).update_data(
+        sectionId=section_id, episodes=episodes, csrf=cred.bili_jct
+    ).result
+
+
 @app.command("list")
 def list_() -> None:
     """我的合集：ID、标题、审核状态、小节，以及里面的视频。"""
@@ -110,26 +139,17 @@ def add(
     videos: list[str] = typer.Argument(..., help="要加入的自己的视频：BV 号、av 号或链接，可传多个。"),
     section: Optional[int] = SECTION_OPT,
 ) -> None:
-    """把自己的视频加进合集（加在小节末尾）。一个视频只能属于一个合集。"""
+    """把自己的视频加进合集（加在小节末尾）。一个视频只能属于一个合集；审核中、定时发布的稿件也能加。"""
 
     async def body():
-        from bilibili_api import video
-
         cred = config.require_credential()
         section_id = await _section_of(cred, season_id, section)
-        episodes = []
-        for v in videos:
-            info = await video.Video(**parse_video_id(v), credential=cred).get_info()
-            if info.get("owner", {}).get("mid") != int(cred.dedeuserid):
-                raise BiliError("invalid_argument", f"{info.get('bvid')} 不是你自己的视频，不能加进你的合集。")
-            episodes.append({"title": info.get("title"), "aid": info.get("aid"), "cid": info.get("cid"), "charging_pay": 0})
+        episodes = [await own_episode(cred, v) for v in videos]
         params = {"season_id": season_id, "section_id": section_id, "videos": [e["title"] for e in episodes]}
         if output.settings.dry_run:
             return {"dry_run": True, "action": "season.add", "params": params}
         guard.check("season")
-        await _api("season/section/episodes/add", "POST", cred, json_body=True).update_data(
-            sectionId=section_id, episodes=episodes, csrf=cred.bili_jct
-        ).result
+        await add_episodes(cred, section_id, episodes)
         guard.record("season", params, "ok")
         return {"season_id": season_id, "section_id": section_id, "added": [e["title"] for e in episodes]}
 

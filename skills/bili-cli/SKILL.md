@@ -44,7 +44,7 @@ bili auth status          # 已登录 → 继续；not_logged_in → 走下面�
 | 发投票动态 / 看结果 | `bili dynamic post "下期做什么？" --vote "下期" --option A --option B`；`bili dynamic vote <vote_id>` |
 | 合集 | `bili season list / create / add <合集ID> <BV…> / remove / delete` |
 | 私信自动回复（B 站自带，需 1000 粉） | `bili dm autoreply show`；改之前必须先给用户看 `--dry-run` 并得到同意 |
-| 投稿 | `bili upload video a.mp4 --title … --tag …`（默认带“含AI生成内容”声明） |
+| 投稿 | `bili upload video a.mp4 --title … --tag …`（默认带“含AI生成内容”声明；`--topic` 话题 / 活动、`--schedule` 定时 + `--reserve` 预约、`--season` 进合集） |
 | 改已投稿件的标题 / 简介 / 标签 / 封面 | `bili upload edit <BV> --title …`（会重新审核，先给用户看 `--dry-run`） |
 | 简介里 @ 人（投稿或改稿） | `--desc "角色设计 @冬冰 " --desc-at 冬冰` |
 | 看自己的数据 | `bili me stats`（账号：播放、涨粉、播放端、超过多少同类 UP）、`bili upload stats <BV>`（单稿：互动率、完播率） |
