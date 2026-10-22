@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-22
+
 ### Added
 - `bili dynamic post --vote/--option`：发投票动态（单选或多选，1 到 30 天）；`bili dynamic vote <vote_id>` 看结果，动态卡片里带投票信息。bilibili-api 自带的投票接口已失效（404），改用网页端当前的接口。
 - `bili season list / create / add / remove / delete`：合集管理——建合集、把自己的视频加进合集或移出、删除合集。
