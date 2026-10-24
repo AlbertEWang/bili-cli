@@ -195,6 +195,7 @@ bili mcp install --yes      # 写入配置（先备份为 .bak，只改 bili-cli
 | `bili feed replies / mentions / likes / system / notifications` | 回复、@、赞、系统通知、未读数 |
 | `bili feed recommend / timeline` | 首页推荐、关注动态（`--type video` 只看新投稿，`--up` 只看一个人） |
 | `bili user follow / unfollow / following` | 关注、取关、我关注的人 |
+| `bili user block / unblock / blocked` | 拉黑、解除拉黑、我的黑名单（应对骚扰） |
 | `bili hot search / popular / weekly / precious / rank` | 热搜、综合热门、每周必看、入站必刷、排行榜 |
 | `bili search video / user` | 搜索 |
 | `bili user info / videos` | 任意用户的资料、粉丝数、投稿列表（按播放 / 收藏排序，按关键词筛系列）；动态用 `bili dynamic list --mid` |

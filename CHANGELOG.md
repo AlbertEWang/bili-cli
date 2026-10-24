@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Added
+- `bili user block / unblock`：拉黑、解除拉黑（UID 或完整昵称），`bili user blocked`：我的黑名单（#8）。
+- 评论带上 `charged`（充电评论）和 `fan_medal`（戴着本 UP 的粉丝勋章，即充过电）；`bili comment list --supporters` 只看这些人，方便优先回复。充电金额不在评论数据里，拿不到。
+
 ## [0.9.0] - 2026-10-24
 
 ### Added

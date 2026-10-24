@@ -24,7 +24,8 @@ class FakeUser:
 
     async def modify_relation(self, relation):
         FakeUser.calls.append((self.mid, relation))
-        self.attr = 2 if relation == user_cmd.user.RelationType.SUBSCRIBE else 0
+        RT = user_cmd.user.RelationType
+        self.attr = {RT.SUBSCRIBE: 2, RT.UNSUBSCRIBE: 0, RT.BLOCK: 128, RT.UNBLOCK: 0}[relation]
 
 
 @pytest.fixture
@@ -36,20 +37,27 @@ def fake(monkeypatch):
 
 
 def test_follow_changes_and_reports_relation(fake):
-    out = asyncio.run(user_cmd._set_follow("2", True))
+    out = asyncio.run(user_cmd._set_relation("2", "follow"))
     assert out["changed"] and out["i_follow"] and out["relation"] == "following"
     assert fake.calls == [(2, user_cmd.user.RelationType.SUBSCRIBE)]
 
 
 def test_follow_is_a_noop_when_already_in_that_state(fake):
-    assert asyncio.run(user_cmd._set_follow("1", True))["changed"] is False
-    assert asyncio.run(user_cmd._set_follow("2", False))["changed"] is False
+    assert asyncio.run(user_cmd._set_relation("1", "follow"))["changed"] is False
+    assert asyncio.run(user_cmd._set_relation("2", "unfollow"))["changed"] is False
     assert fake.calls == []
+
+
+def test_block_and_unblock(fake):
+    out = asyncio.run(user_cmd._set_relation("1", "block"))
+    assert out["changed"] and out["relation"] == "blocked" and not out["i_follow"]
+    assert asyncio.run(user_cmd._set_relation("2", "unblock"))["changed"] is False  # not blocked: nothing to do
+    assert fake.calls == [(1, user_cmd.user.RelationType.BLOCK)]
 
 
 def test_cannot_follow_yourself(fake):
     with pytest.raises(BiliError):
-        asyncio.run(user_cmd._set_follow("99", True))
+        asyncio.run(user_cmd._set_relation("99", "follow"))
 
 
 def test_comment_cap_and_curl_timeouts_are_mapped():
@@ -62,3 +70,13 @@ def test_comment_cap_and_curl_timeouts_are_mapped():
     assert e.code == "rate_limited" and "1 小时" in e.hint
     assert from_exception(ResponseCodeException(12006, "没有该评论")).code == "not_found"
     assert from_exception(Timeout("curl: (28) Operation timed out")).code == "network_error"
+
+
+def test_comment_marks_chargers():
+    from bili_cli.commands.comment import _reply
+
+    raw = {"rpid": 1, "attr": 0x100000300, "member": {"uname": "a", "fans_detail": {"medal_name": "大淝鱼", "level": 6}}, "content": {"message": "x"}}
+    item = _reply(raw)
+    assert item["charged"] is True and item["fan_medal"] == {"name": "大淝鱼", "level": 6}
+    plain = _reply({"rpid": 2, "attr": 512, "member": {"uname": "b"}, "content": {"message": "y"}})
+    assert "charged" not in plain and "fan_medal" not in plain

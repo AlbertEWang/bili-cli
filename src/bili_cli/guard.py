@@ -35,6 +35,7 @@ LIMITS: dict[str, tuple[int, int]] = {
     "favorite": (5, 60),
     "coin": (10, 5),
     "follow": (10, 20),
+    "block": (10, 20),
 }
 # action -> maximum units per 24 hours (coins cost real money and cannot be taken back)
 DAILY_LIMITS: dict[str, int] = {"coin": 5}

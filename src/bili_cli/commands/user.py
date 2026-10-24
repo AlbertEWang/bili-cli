@@ -11,7 +11,7 @@ from .. import config, output
 from ..errors import BiliError
 from ..runtime import iso_time, run, strip_html
 
-app = typer.Typer(help="查看任意用户：资料、粉丝数、投稿列表。", no_args_is_help=True)
+app = typer.Typer(help="查看任意用户：资料、粉丝数、投稿列表；关注 / 取关、拉黑 / 解除拉黑。", no_args_is_help=True)
 
 USER_ARG = typer.Argument(..., help="UID，或完整昵称（会用搜索找到昵称完全一致的用户）。")
 VIDEO_ORDERS = {"new": user.VideoOrder.PUBDATE, "views": user.VideoOrder.VIEW, "favorites": user.VideoOrder.FAVORITE}
@@ -117,38 +117,85 @@ async def _relation_with(u: user.User) -> dict[str, Any]:
     return {"i_follow": mine in (1, 2, 6), "follows_me": theirs in (1, 2, 6), "relation": _ATTRS.get(mine, str(mine))}
 
 
-async def _set_follow(who: str, follow: bool) -> dict[str, Any]:
+# action -> (relation type to send, "already done" check on the current relation, audit / guard name)
+_ACTIONS = {
+    "follow": (user.RelationType.SUBSCRIBE, lambda r: r["i_follow"], "follow"),
+    "unfollow": (user.RelationType.UNSUBSCRIBE, lambda r: not r["i_follow"], "follow"),
+    "block": (user.RelationType.BLOCK, lambda r: r["relation"] == "blocked", "block"),
+    "unblock": (user.RelationType.UNBLOCK, lambda r: r["relation"] != "blocked", "block"),
+}
+
+
+async def _set_relation(who: str, action: str) -> dict[str, Any]:
     from .. import guard
 
+    relation_type, already, limit = _ACTIONS[action]
     cred = config.require_credential()
     mid = await resolve_mid(who)
     if str(mid) == str(cred.dedeuserid):
-        raise BiliError("invalid_argument", "不能关注 / 取关自己。")
+        raise BiliError("invalid_argument", "不能对自己做这个操作。")
     u = user.User(mid, credential=cred)
     before = await _relation_with(u)
-    if before["relation"] == "blocked":
-        raise BiliError("invalid_argument", f"你已把 {mid} 拉黑，先在网页上解除拉黑。")
-    params = {"mid": mid, "follow": follow}
-    if before["i_follow"] == follow:
+    if action == "follow" and before["relation"] == "blocked":
+        raise BiliError("invalid_argument", f"你已把 {mid} 拉黑，先运行 `bili user unblock {mid}`。")
+    params = {"mid": mid, "action": action}
+    if already(before):
         return {**params, "changed": False, **before}
     if output.settings.dry_run:
-        return {"dry_run": True, "action": "user.follow" if follow else "user.unfollow", "params": params}
-    guard.check("follow")
-    await u.modify_relation(user.RelationType.SUBSCRIBE if follow else user.RelationType.UNSUBSCRIBE)
-    guard.record("follow", params, "ok")
+        return {"dry_run": True, "action": f"user.{action}", "params": params}
+    guard.check(limit)
+    await u.modify_relation(relation_type)
+    guard.record(limit, params, "ok")
     return {**params, "changed": True, **await _relation_with(u)}
 
 
 @app.command()
 def follow(who: str = USER_ARG) -> None:
     """关注一个用户（已关注时什么也不做）。本地限制每小时最多 20 次关注 / 取关。"""
-    run(lambda: _set_follow(who, True))
+    run(lambda: _set_relation(who, "follow"))
 
 
 @app.command()
 def unfollow(who: str = USER_ARG) -> None:
     """取消关注一个用户（没关注时什么也不做）。"""
-    run(lambda: _set_follow(who, False))
+    run(lambda: _set_relation(who, "unfollow"))
+
+
+@app.command()
+def block(who: str = USER_ARG) -> None:
+    """拉黑一个用户：对方不能再评论、私信、@ 你，你也会自动取关对方。用于应对骚扰。"""
+    run(lambda: _set_relation(who, "block"))
+
+
+@app.command()
+def unblock(who: str = USER_ARG) -> None:
+    """把一个用户移出黑名单（之前的关注不会恢复）。"""
+    run(lambda: _set_relation(who, "unblock"))
+
+
+@app.command()
+def blocked(
+    page: int = typer.Option(1, "--page", min=1, help="页码，从 1 开始。"),
+    size: int = typer.Option(50, "--size", min=1, max=50, help="每页条数。"),
+) -> None:
+    """我的黑名单，按拉黑时间从新到旧。"""
+
+    async def body():
+        cred = config.require_credential()
+        data = await user.get_self_black_list(cred, pn=page, ps=size)
+        if output.settings.raw:
+            return data
+        return {
+            "page": page,
+            "total": data.get("total"),
+            "items": [
+                {"mid": b.get("mid"), "name": b.get("uname"), "blocked_at": iso_time(b.get("mtime"))}
+                for b in data.get("list") or []
+            ],
+            "unblock_with": "bili user unblock <UID>",
+        }
+
+    run(body)
 
 
 @app.command()

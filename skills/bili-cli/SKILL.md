@@ -52,7 +52,8 @@ bili auth status          # 已登录 → 继续；not_logged_in → 走下面�
 | 研究别的 UP 主 | `bili user info <UID|昵称>`、`bili user videos <UID> --order views`（找爆款）/ `-k 系列名` |
 | 看关注的人发了什么 | `bili feed timeline`（关注动态）、`--type video` 只看新投稿、`--up <UID|昵称>` 只看一个人 |
 | 关注 / 取关 | `bili user follow <UID|昵称>`、`bili user unfollow <UID|昵称>`、`bili user following`（我关注的人）；只关注用户要求的或真正想长期看的人，不要批量关注 |
-| 找还没回的评论 | `bili comment list <BV> --unreplied --sort time` |
+| 拉黑骚扰者 | `bili user block <UID|昵称>`、`bili user unblock`、`bili user blocked`（黑名单）；只在用户要求或明显恶意骚扰时用，拉黑前告诉用户 |
+| 找还没回的评论 | `bili comment list <BV> --unreplied --sort time`；加 `--supporters` 只看充过电的人，优先回 |
 
 详细流程与示例：[references/workflows.md](references/workflows.md)。全部命令和参数：[references/commands.md](references/commands.md)，或运行 `bili schema`。
 
