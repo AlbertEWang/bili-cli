@@ -64,3 +64,55 @@ def test_iso_time_accepts_numeric_strings():
 
     assert iso_time("1792902428") == iso_time(1792902428)
     assert iso_time("0") is None and iso_time("") is None and iso_time(None) is None
+
+
+def test_parse_staff():
+    from bili_cli.commands.upload import parse_staff
+
+    assert parse_staff(["策划:94782782", "演唱：owner"]) == [("策划", "94782782"), ("演唱", "owner")]
+    with pytest.raises(BiliError):
+        parse_staff(["94782782"])
+
+
+def test_check_staff(monkeypatch):
+    import asyncio
+    import contextlib
+
+    import httpx
+
+    from bili_cli.commands import comment, upload
+
+    pre = {"data": {
+        "myinfo": {"mid": 1, "staff_qualification_v2": {"staff_auth": True, "cnt": False}},
+        "staff_conf": {"typelist": [{"typeid": 193, "max_staff": 10, "titles": ["策划", "演唱"]}]},
+    }}
+
+    @contextlib.asynccontextmanager
+    async def fake_client(cred, referer=None):
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(200, json=pre))) as c:
+            yield c
+
+    async def fake_mentions(values, limit):
+        return {f"user{v}": int(v) for v in values}
+
+    monkeypatch.setattr(upload, "web_client", fake_client)
+    monkeypatch.setattr(comment, "_mentions", fake_mentions)
+    check = lambda staff, tid=193: asyncio.run(upload._check_staff(None, tid, staff))
+    assert check([("策划", "94782782")]) == [{"title": "策划", "mid": 94782782, "name": "user94782782"}]
+    for bad in ([("剪辑", "2")], [("策划", "1")]):
+        with pytest.raises(BiliError):
+            check(bad)
+    with pytest.raises(BiliError):
+        check([("策划", "2")], tid=21)
+    pre["data"]["myinfo"]["staff_qualification_v2"]["staff_auth"] = False
+    with pytest.raises(BiliError):
+        check([("策划", "2")])
+
+
+def test_check_reserve():
+    from bili_cli.commands.upload import _check_reserve
+
+    _check_reserve({"act_reserve": {"act_reserve_open": True}})
+    for pre in ({}, {"act_reserve": {"act_reserve_open": False}}):
+        with pytest.raises(BiliError):
+            _check_reserve(pre)

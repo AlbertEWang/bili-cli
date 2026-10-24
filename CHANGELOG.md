@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+### Added
+- `bili upload video --staff "职能:UID"`：联合投稿，邀请合作者（可重复传入，`owner` 表示主人）。投稿前会检查账号有没有发起资格、本月次数和这个分区允许的职能；对方要在 24 小时内确认。
+- `bili upload edit --video <文件>`：换源，上传新视频文件替换已投稿件（单 P），可配合 `--line` 选上传线路。
+
+### Fixed
+- `bili upload edit`：改稿时保留联合投稿成员、活动（mission）和话题；联合投稿的稿件不再被拒绝改稿。
+- `bili upload video --reserve`：账号没有视频预约功能时，B 站会悄悄忽略这个选项；现在投稿前就会报错。
+- `bili danmaku interact vote --allow-custom`：以前 B 站把「自定义」挂到了最后一个普通选项上，观众看不到自定义入口；现在会单独加一个自定义选项（默认「其他」，可用 `--custom-label` 改），固定选项最多 3 个。
+
 ## [0.7.0] - 2026-10-23
 
 ### Added

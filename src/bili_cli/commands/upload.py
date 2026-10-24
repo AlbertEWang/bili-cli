@@ -152,6 +152,63 @@ async def find_topic(cred: Credential, query: str) -> dict[str, Any]:
     raise BiliError("not_found", f"找不到话题 {query!r}。", detail={"candidates": [t.get("name") for t in topics[:8]]})
 
 
+PRE_URL = "https://member.bilibili.com/x/vupre/web/archive/pre"
+
+
+def parse_staff(values: list[str]) -> list[tuple[str, str]]:
+    """"职能:UID或昵称" → [(title, who)]; the colon may be full-width."""
+    out = []
+    for v in values:
+        title, sep, who = v.replace("：", ":").partition(":")
+        if not sep or not title.strip() or not who.strip():
+            raise BiliError("invalid_argument", f"--staff 格式是“职能:UID”，如 “策划:94782782”，收到 {v!r}。")
+        out.append((title.strip(), who.strip()))
+    return out
+
+
+async def _pre(cred: Credential) -> dict[str, Any]:
+    """The upload page's bootstrap data: what this account may use (joint submission, reservations, …)."""
+    async with web_client(cred, referer="https://member.bilibili.com/") as client:
+        resp = await client.get(PRE_URL, params={"lang": "cn"})
+    return resp.json().get("data") or {}
+
+
+def _check_reserve(pre: dict[str, Any]) -> None:
+    # B 站 silently drops act_reserve_create for accounts without the feature; the web page hides the switch
+    if not (pre.get("act_reserve") or {}).get("act_reserve_open"):
+        raise BiliError("permission_denied", "这个账号还不能发起视频预约，B 站会直接忽略 --reserve。", hint="去掉 --reserve。视频预约要账号达到 B 站的门槛（目前是 1 万粉丝），网页投稿页的定时发布下面出现“发起预约”开关后才能用。")
+
+
+async def _check_staff(cred: Credential, tid: int, staff: list[tuple[str, str]], data: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Validate a joint submission against the account's qualification and the zone's allowed roles, like the web uploader."""
+    if data is None:
+        data = await _pre(cred)
+    qual = (data.get("myinfo") or {}).get("staff_qualification_v2") or {}
+    if not qual.get("staff_auth"):
+        raise BiliError("permission_denied", "这个账号还不能发起联合投稿。", hint="需要创作等级 Lv3 等条件，满足后在网页投稿页能看到“联合投稿”。")
+    if qual.get("cnt"):
+        raise BiliError("permission_denied", "本月联合投稿发起次数已用完。")
+    conf = next((t for t in (data.get("staff_conf") or {}).get("typelist") or [] if t.get("typeid") == tid), None)
+    if conf is None:
+        raise BiliError("invalid_argument", f"分区 {tid} 不支持联合投稿。")
+    titles = conf.get("titles") or []
+    if len(staff) > (conf.get("max_staff") or 10):
+        raise BiliError("invalid_argument", f"联合投稿最多 {conf.get('max_staff')} 位合作者。")
+    bad = [t for t, _ in staff if t not in titles]
+    if bad:
+        raise BiliError("invalid_argument", f"这个分区不支持职能：{', '.join(bad)}", detail={"allowed_titles": titles})
+    from .comment import _mentions
+
+    resolved = await _mentions([who for _, who in staff], limit=len(staff))
+    mids = list(resolved.items())
+    if len(mids) != len(staff):
+        raise BiliError("invalid_argument", "--staff 里有重复的合作者。")
+    me = (data.get("myinfo") or {}).get("mid")
+    if any(mid == me for _, mid in mids):
+        raise BiliError("invalid_argument", "不能把自己加为合作者。")
+    return [{"title": title, "mid": mid, "name": name} for (title, _), (name, mid) in zip(staff, mids)]
+
+
 def _extract_cover(video: Path) -> Path:
     if not shutil.which("ffmpeg"):
         raise BiliError("invalid_argument", "未指定 --cover，且系统中没有 ffmpeg，无法自动截取封面。", hint="用 --cover 指定封面图片，或安装 ffmpeg。")
@@ -220,6 +277,7 @@ def video_(
     schedule: Optional[str] = typer.Option(None, "--schedule", help="定时发布，ISO 时间（默认北京时间），需在 2 小时到 15 天之后。"),
     topic: Optional[str] = typer.Option(None, "--topic", help="投稿话题（含官方活动话题，如“AI MV 大赛”）：填话题名或话题 ID；有奖活动会自动报名。"),
     season: Optional[int] = typer.Option(None, "--season", help="投稿后直接加进这个合集（合集 ID，见 `bili season list`），加在第一个小节末尾。"),
+    staff: list[str] = typer.Option([], "--staff", help="联合投稿：邀请合作者，格式“职能:UID或昵称”（如 “策划:94782782”，owner 表示主人），可重复传入。对方 24 小时内在消息里确认后才会挂名。"),
     reserve: bool = typer.Option(False, "--reserve", help="同时开启视频预约（需配合 --schedule）：空间和动态出现预约卡片，粉丝可预约、发布时收到提醒。"),
     dynamic: Optional[str] = typer.Option(None, "--dynamic", help=f"同步发布的粉丝动态文字，最多 {DYNAMIC_MAX} 字。"),
     no_reprint: bool = typer.Option(False, "--no-reprint", help="声明未经授权禁止转载。"),
@@ -259,6 +317,9 @@ def video_(
         topic_info = await find_topic(cred, topic) if topic else None
         if reserve and not dtime:
             raise BiliError("invalid_argument", "--reserve 需要配合 --schedule 定时发布使用。")
+        staff_items = parse_staff(staff)
+        if staff_items and (repost or private):
+            raise BiliError("invalid_argument", "联合投稿不能和 --repost（转载）或 --private（仅自己可见）一起用。")
 
         zone: dict[str, Any] = {"tid": tid, "tid_name": None, "zone": zone_id, "zone_name": None}
         if tid is None or zone_id is None:
@@ -275,6 +336,10 @@ def video_(
                 raise BiliError("invalid_argument", f"未知的分区 ID {zone_id}。", hint="运行 `bili upload zones` 查看可用分区。")
             zone["zone_name"] = known[zone_id]
         zone["predicted"] = zone_id is None
+        pre = await _pre(cred) if (staff_items or reserve) else {}
+        if reserve:
+            _check_reserve(pre)
+        staffs = await _check_staff(cred, zone["tid"], staff_items, pre) if staff_items else []
         bad_tags = await _check_tags(cred, tags)
         if bad_tags:
             raise BiliError("invalid_argument", f"B 站不接受这些标签：{', '.join(bad_tags)}", detail={"rejected_tags": bad_tags})
@@ -312,6 +377,8 @@ def video_(
             meta["topic_id"] = topic_info["id"]
             if topic_info.get("mission_id"):
                 meta["mission_id"] = topic_info["mission_id"]
+        if staffs:
+            meta["staffs"] = [{"title": s["title"], "mid": s["mid"]} for s in staffs]
         if dtime:
             meta["dtime"] = dtime
             meta["act_reserve_create"] = 1 if reserve else 0
@@ -326,6 +393,7 @@ def video_(
             "schedule": iso_time(dtime),
             "reserve": reserve,
             "topic": topic_info,
+            "staff": staffs or None,
             "copyright": "repost" if repost else "original",
             "cover": str(cover) if cover else "auto (ffmpeg)",
             "cover43": str(cover43) if cover43 else None,
@@ -363,6 +431,8 @@ def video_(
                 result["season_added"] = False
                 result["season_error"] = str(exc)
                 result["season_hint"] = f"稍后运行 `bili season add {season} {res.get('bvid')}`。"
+        if staffs:
+            result["staff_note"] = "合作者会收到联合投稿邀请，需在 24 小时内确认，确认后才会显示在稿件上。"
         return {
             **result,
             **summary,
@@ -506,14 +576,27 @@ async def _desc_mentions(values: list[str]) -> dict[str, int]:
     return await _mentions(values, limit=DESC_MENTIONS_MAX)
 
 
+async def _upload_file(cred: Credential, video: Path, line: vu.Lines | None) -> dict[str, Any]:
+    """Upload one video file on its own (no submit) and return its {filename, cid} for an edit payload."""
+    page = vu.VideoUploaderPage(path=str(video), title=video.stem)
+    uploader = vu.VideoUploader([page], {}, cred, cover=Picture(), line=line)
+    if sys.stderr.isatty():
+        _progress(uploader)
+    uploader.line = await vu._choose_line(line)
+    return await uploader._upload_page(page)
+
+
 def edit_blocker(view: dict[str, Any]) -> str | None:
     """Why this archive must be edited on the web instead, or None. build_edit can't carry these settings."""
     if ((view.get("reply") or {}).get("state") or 0) != 0:
         return "这个稿件的评论区不是普通开放状态，命令行改稿可能把评论设置改回默认。"
-    # copyright is echoed back unchanged (the web uploader stores 3 even for solo uploads); staff lists are not
-    if view.get("staffs"):
-        return "这是联合投稿（有合作成员），命令行改稿不带成员名单，可能出错或把合作者移除。"
     return None
+
+
+def current_staffs(view: dict[str, Any]) -> list[dict[str, Any]]:
+    """The joint-submission members as the edit endpoint wants them back (unchanged, so B 站 keeps their confirmations)."""
+    return [{"title": s.get("staff_title") or s.get("apply_title"), "mid": s.get("apply_staff_mid")}
+            for s in view.get("staffs") or [] if s.get("apply_staff_mid")]
 
 
 def build_edit(view: dict[str, Any], changes: dict[str, Any]) -> dict[str, Any]:
@@ -553,6 +636,16 @@ def build_edit(view: dict[str, Any], changes: dict[str, Any]) -> dict[str, Any]:
         body["human_type2"] = arc["human_type2"]["id"]
     if arc.get("dtime") and arc.get("state") != 0:  # keep a pending schedule
         body["dtime"] = arc["dtime"]
+    # like the web editor: keep the topic / event entry and the joint-submission members, or the edit drops them
+    body["new_web_edit"], body["topic_grey"] = 1, 1
+    if arc.get("mission_id"):
+        body["mission_id"] = arc["mission_id"]
+    if arc.get("topic_id"):
+        body["topic_id"] = arc["topic_id"]
+    if staffs := current_staffs(view):
+        body["staffs"], body["handle_staff"] = staffs, False
+    if "videos" in changes:
+        body["videos"] = changes["videos"]
     if "tags" in changes:
         body["tag"] = ",".join(changes["tags"])
     if "ai_declare" in changes:
@@ -576,8 +669,10 @@ def edit(
     cover: Optional[Path] = typer.Option(None, "--cover", help="新封面图片。"),
     cover43: Optional[Path] = typer.Option(None, "--cover43", help="新的 4:3 封面（手机端推荐流）。"),
     ai_declare: Optional[bool] = typer.Option(None, "--ai-declare/--no-ai-declare", help="修改“含AI生成内容”声明；不传则保持不变。"),
+    video: Optional[Path] = typer.Option(None, "--video", help="换源：用这个文件替换稿件的视频（仅限单 P 稿件）。播放、评论等数据保留，重新审核期间一般仍显示旧视频。"),
+    line: Optional[str] = typer.Option(None, "--line", help="换源时的上传线路：bda2 / qn / ws / bldsa；不传则自动测速。"),
 ) -> None:
-    """修改已投稿件的标题、简介、标签、封面或 AI 声明；没指定的设置保持不变。改完稿件会重新审核。"""
+    """修改已投稿件的标题、简介、标签、封面、AI 声明，或替换视频（换源）；没指定的设置保持不变，话题 / 活动和联合投稿成员会原样保留。改完稿件会重新审核。"""
 
     async def body():
         cred = config.require_credential()
@@ -600,8 +695,16 @@ def edit(
                 raise BiliError("invalid_argument", f"封面文件不存在：{path}")
         if ai_declare is not None:
             changes["ai_declare"] = ai_declare
-        if not changes and cover is None and cover43 is None and not desc_at:
-            raise BiliError("invalid_argument", "没有要修改的内容。", hint="传 --title / --desc / --desc-at / --tag / --cover / --cover43 / --ai-declare 中的至少一个。")
+        if video is not None and not video.is_file():
+            raise BiliError("invalid_argument", f"视频文件不存在：{video}")
+        line_enum = None
+        if line:
+            try:
+                line_enum = vu.Lines(line)
+            except ValueError as exc:
+                raise BiliError("invalid_argument", "--line 只能是 bda2 / qn / ws / bldsa。") from exc
+        if not changes and cover is None and cover43 is None and not desc_at and video is None:
+            raise BiliError("invalid_argument", "没有要修改的内容。", hint="传 --title / --desc / --desc-at / --tag / --cover / --cover43 / --ai-declare / --video 中的至少一个。")
         desc_mentions = await _desc_mentions(desc_at)
         view = await _archive_view(cred, bvid)
         if reason := edit_blocker(view):
@@ -622,11 +725,19 @@ def edit(
             diff["cover"] = {"to": str(cover)}
         if cover43:
             diff["cover43"] = {"to": str(cover43)}
+        old_videos = view.get("videos") or []
+        if video:
+            if len(old_videos) != 1:
+                raise BiliError("invalid_argument", f"这个稿件有 {len(old_videos)} 个分 P，--video 只支持单 P 稿件。", hint="多 P 稿件请在网页端替换。")
+            diff["video"] = {"from": old_videos[0].get("filename"), "to": str(video)}
         if not diff:
             raise BiliError("invalid_argument", "指定的内容和稿件现在的一样，无需修改。")
         if output.settings.dry_run:
             return {"dry_run": True, "action": "upload.edit", "bvid": bvid, "changes": diff, "payload": build_edit(view, changes)}
         guard.check("upload_edit")
+        if video:
+            await _preflight(cred, video)
+            changes["videos"] = [{**await _upload_file(cred, video, line_enum), "title": old_videos[0].get("title"), "desc": old_videos[0].get("desc") or ""}]
         if cover:
             changes["cover"] = await vu.upload_cover(Picture.from_file(str(cover)), cred)
         if cover43:

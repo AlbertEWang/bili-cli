@@ -153,4 +153,15 @@ def test_edit_refuses_what_build_edit_cannot_preserve():
     assert "评论区" in upload_cmd.edit_blocker({**VIEW, "reply": {"state": 1}})
     web_upload = {**VIEW, "archive": {**VIEW["archive"], "copyright": 3}, "staffs": []}
     assert upload_cmd.edit_blocker(web_upload) is None  # copyright 3 alone is fine: it is sent back as-is
-    assert "联合投稿" in upload_cmd.edit_blocker({**VIEW, "staffs": [{"apply_staff_mid": 2}]})
+    assert upload_cmd.edit_blocker({**VIEW, "staffs": [{"apply_staff_mid": 2}]}) is None  # members are now sent back
+
+
+def test_edit_keeps_staff_and_event_and_replaces_video():
+    view = {**VIEW, "archive": {**VIEW["archive"], "mission_id": 4067875, "topic_id": 1348290},
+            "staffs": [{"apply_staff_mid": 94782782, "apply_title": "策划", "staff_title": "策划", "apply_state": 1}]}
+    body = upload_cmd.build_edit(view, {})
+    assert body["staffs"] == [{"title": "策划", "mid": 94782782}] and body["handle_staff"] is False
+    assert body["mission_id"] == 4067875 and body["topic_id"] == 1348290 and body["new_web_edit"] == 1
+    new = [{"filename": "n123", "cid": 9, "title": "t", "desc": ""}]
+    assert upload_cmd.build_edit(view, {"videos": new})["videos"] == new
+    assert "staffs" not in upload_cmd.build_edit(VIEW, {})

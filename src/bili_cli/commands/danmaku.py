@@ -218,7 +218,8 @@ def interact_vote(
     question: str = typer.Option(..., "--question", help=f"投票问题，最多 {VOTE_QUESTION_MAX} 字。"),
     option: list[str] = typer.Option(..., "--option", help=f"选项，可重复传入 2 到 4 次，每个最多 {VOTE_OPTION_MAX} 字。"),
     time: float = typer.Option(..., "--time", min=0, help="出现的时间点，单位秒。"),
-    allow_custom: bool = typer.Option(False, "--allow-custom", help="允许观众点“自定义”后发弹幕表达自己的观点。"),
+    allow_custom: bool = typer.Option(False, "--allow-custom", help="最后加一个自定义选项：观众点它后发弹幕写自己的答案（占一个选项名额）。"),
+    custom_label: str = typer.Option("其他", "--custom-label", help="自定义选项的文字（配合 --allow-custom）。"),
     page: int = typer.Option(1, "--page", "-p", min=1, help="分 P 序号，从 1 开始。"),
 ) -> None:
     """在视频里添加投票弹幕（每个视频 1 个）。"""
@@ -227,6 +228,11 @@ def interact_vote(
         cred = config.require_credential()
         q = question.strip()
         opts = [o.strip() for o in option]
+        if allow_custom:
+            # B 站 marks the self-defined answer on one option (has_self_def), so it gets its own last slot
+            if len(opts) > 3:
+                raise BiliError("invalid_argument", "开了 --allow-custom 时固定选项最多 3 个（自定义选项占第 4 个）。")
+            opts.append(custom_label.strip())
         if not q or len(q) > VOTE_QUESTION_MAX:
             raise BiliError("invalid_argument", f"投票问题需为 1 到 {VOTE_QUESTION_MAX} 字。")
         if not 2 <= len(opts) <= 4:
