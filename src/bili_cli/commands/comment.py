@@ -55,6 +55,9 @@ def comment_images(r: dict[str, Any]) -> list[str]:
     return [_https(p["img_src"]) for p in (r.get("content") or {}).get("pictures") or [] if p.get("img_src")]
 
 
+CHARGED_ATTR_BIT = 32  # attr bit B 站 sets on comments posted together with a charge
+
+
 def _reply(r: dict[str, Any], with_children: bool = True) -> dict[str, Any]:
     member = r.get("member") or {}
     item: dict[str, Any] = {
@@ -69,6 +72,11 @@ def _reply(r: dict[str, Any], with_children: bool = True) -> dict[str, Any]:
     }
     if images := comment_images(r):
         item["images"] = images  # view them with `bili comment images <url>…`
+    if (r.get("attr") or 0) >> CHARGED_ATTR_BIT & 1:
+        item["charged"] = True  # posted from the 充电评论 box; the amount is not in comment data
+    # a comment area only shows the medal of its own uploader, which (without live gifts) comes from charging
+    if medal := member.get("fans_detail"):
+        item["fan_medal"] = {"name": medal.get("medal_name"), "level": medal.get("level")}
     if with_children and r.get("replies"):
         item["replies_preview"] = [_reply(c, with_children=False) for c in r["replies"]]
     return item
@@ -95,8 +103,9 @@ def list_(
     sort: str = typer.Option("hot", "--sort", help="排序：hot（按点赞）或 time（按时间）。"),
     page: int = typer.Option(1, "--page", min=1, help="页码，从 1 开始；第 2 页起需要登录。"),
     unreplied: bool = typer.Option(False, "--unreplied", help="只看 UP 主还没回复过的评论（不含 UP 主自己发的），按页筛选。"),
+    supporters: bool = typer.Option(False, "--supporters", help="只看充电评论和戴着本 UP 粉丝勋章的人（给你充过电的），按页筛选；适合优先回复。"),
 ) -> None:
-    """列出评论（每页约 20 条），附带每条评论的前几条楼中楼。"""
+    """列出评论（每页约 20 条），附带每条评论的前几条楼中楼。充电评论带 `charged`，充过电的人带 `fan_medal`。"""
 
     async def body():
         if sort not in ("hot", "time"):
@@ -118,7 +127,11 @@ def list_(
             out["unreplied"] = len(rows)
         elif page == 1 and (pinned := _pinned(data)):
             out["pinned"] = [_reply(r) for r in pinned]
-        out["items"] = [_reply(r) for r in rows]
+        items = [_reply(r) for r in rows]
+        if supporters:
+            items = [i for i in items if i.get("charged") or i.get("fan_medal")]
+            out["supporters"] = len(items)
+        out["items"] = items
         return out
 
     run(body)
