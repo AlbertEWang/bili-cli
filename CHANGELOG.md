@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-24
+
+### Added
+- `bili user follow / unfollow`：关注、取关（UID 或完整昵称；已经是目标状态时不重复操作），本地限制每小时 20 次；`bili user following`：我关注的人。
+- `bili feed timeline --type video|article|pgc`：关注动态只看新投稿 / 专栏 / 番剧；`--up <UID|昵称>` 只看一个人；`--limit` 自动翻页凑够条数。
+- 动态卡片标出置顶动态（`pinned`），不会被当成最新一条。
+
+### Fixed
+- B 站 12014「已达到当前评论发送上限」现在报 `rate_limited`，并提示至少停 1 小时再发；以前是笼统的 `api_error`。
+- 12006「没有该评论」报 `not_found`；网络超时（curl 28）报 `network_error`，不再被当成 bili-cli 的 bug。
+
 ## [0.8.0] - 2026-10-24
 
 ### Added
