@@ -105,6 +105,8 @@ def normalize(item: dict[str, Any]) -> dict[str, Any]:
             "type": comment_type,
             "list_with": f"bili comment list {comment_target}{type_flag}",
         }
+    if (mods.get("module_tag") or {}).get("text") == "置顶":
+        out["pinned"] = True
     if item.get("orig"):
         out["original"] = normalize(item["orig"])
     return out

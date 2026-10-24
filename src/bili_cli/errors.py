@@ -36,6 +36,8 @@ BILI_CODE_MAP: dict[int, str] = {
     -509: "rate_limited",
     -799: "rate_limited",
     12002: "not_found",  # 评论区已关闭
+    12006: "not_found",  # 没有该评论
+    12014: "rate_limited",  # 已达到当前评论发送上限（按账号，B 站动态调整）
     12015: "captcha_required",
     12016: "invalid_argument",  # 评论含敏感内容
     12035: "invalid_argument",  # 被 UP 主拉黑，无法评论
@@ -51,6 +53,11 @@ BILI_CODE_MAP: dict[int, str] = {
     79046: "invalid_argument",  # 互动组件存在时间冲突
     79037: "invalid_argument",  # 关注弹幕坐标溢出
     79034: "invalid_argument",  # 视频时长过短，或发送时剩余时长过短
+}
+
+# hints for codes whose generic hint would send the agent the wrong way
+BILI_CODE_HINTS: dict[int, str] = {
+    12014: "账号的评论额度用完了（等级低、短时间发得多的账号额度更小）。至少停 1 小时再发，不要每隔几分钟试一次；之后放慢、均匀地发。",
 }
 
 
@@ -92,7 +99,7 @@ def from_exception(exc: BaseException) -> BiliError:
 
     if isinstance(exc, bex.ResponseCodeException):
         code = BILI_CODE_MAP.get(exc.code, "api_error")
-        return BiliError(code, f"B 站返回错误 {exc.code}：{exc.msg}", detail={"bili_code": exc.code})
+        return BiliError(code, f"B 站返回错误 {exc.code}：{exc.msg}", hint=BILI_CODE_HINTS.get(exc.code), detail={"bili_code": exc.code})
     if isinstance(
         exc,
         (
@@ -118,7 +125,8 @@ def from_exception(exc: BaseException) -> BiliError:
 
     if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 412:
         return BiliError("risk_control", "请求被 B 站风控拦截（HTTP 412）。", detail={"url": str(exc.request.url.copy_with(query=None))})
-    if isinstance(exc, (httpx.HTTPError, ConnectionError, TimeoutError)):
+    # curl_cffi (used by bilibili-api) raises its own Timeout / ConnectionError types
+    if isinstance(exc, (httpx.HTTPError, ConnectionError, TimeoutError)) or type(exc).__module__.startswith("curl_cffi"):
         return BiliError("network_error", f"{type(exc).__name__}: {exc}")
 
     return BiliError("internal_error", f"{type(exc).__name__}: {exc}")

@@ -140,25 +140,47 @@ def recommend(
     run(body)
 
 
+TIMELINE_TYPES = ("all", "video", "article", "pgc")
+
+
 @app.command()
 def timeline(
+    kind: str = typer.Option("all", "--type", help="all（全部）/ video（只看投稿视频）/ article（专栏）/ pgc（番剧影视）。"),
+    up: Optional[str] = typer.Option(None, "--up", help="只看某个关注的人：UID 或完整昵称。"),
+    limit: int = typer.Option(20, "--limit", min=1, max=100, help="最多返回的条数（会自动翻页凑够）。"),
     offset: Optional[str] = typer.Option(None, "--offset", help="翻页游标，取上一页返回的 next_offset。"),
 ) -> None:
-    """关注的人的最新动态（首页动态流），每页约 20 条。"""
+    """关注动态：首页「动态」里我关注的人发的视频、图文、转发等，从新到旧。"""
 
     async def body():
-        from bilibili_api import dynamic
+        from bilibili_api import dynamic, user
 
         from .dynamic import normalize
+        from .user import resolve_mid
 
+        if kind not in TIMELINE_TYPES:
+            raise BiliError("invalid_argument", f"--type 只能是 {' / '.join(TIMELINE_TYPES)} 之一。")
         cred = config.require_credential()
-        data = await dynamic.get_dynamic_page_info(cred, offset=int(offset) if offset else None)
+        host_mid = await resolve_mid(up) if up else None
+        items: list[dict[str, Any]] = []
+        raw_pages: list[dict[str, Any]] = []
+        cursor = offset
+        while True:
+            if host_mid:  # the timeline endpoint ignores host_mid, so read that user's own dynamics
+                data = await user.User(host_mid, credential=cred).get_dynamics_new(offset=cursor or "")
+            else:
+                data = await dynamic.get_dynamic_page_info(cred, _type=dynamic.DynamicType(kind), offset=int(cursor) if cursor else None)
+            raw_pages.append(data)
+            page = [normalize(i) for i in data.get("items") or []]
+            if host_mid and kind != "all":
+                page = [i for i in page if i["type"] == kind]
+            items += page
+            cursor = data.get("offset") if data.get("has_more") else None
+            if not cursor or len(items) >= limit:
+                break
         if output.settings.raw:
-            return data
-        return {
-            "items": [normalize(i) for i in data.get("items") or []],
-            "next_offset": data.get("offset") if data.get("has_more") else None,
-        }
+            return raw_pages
+        return {"items": items[:limit], "next_offset": cursor}
 
     run(body)
 

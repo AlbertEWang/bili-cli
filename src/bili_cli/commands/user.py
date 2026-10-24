@@ -104,3 +104,78 @@ def videos(
         }
 
     run(body)
+
+
+# x/space/wap/relation: attribute 0 = not following, 1 = following quietly, 2 = following, 6 = mutual, 128 = blocked
+_ATTRS = {0: "none", 1: "following", 2: "following", 6: "mutual", 128: "blocked"}
+
+
+async def _relation_with(u: user.User) -> dict[str, Any]:
+    data = await u.get_relation()
+    mine = (data.get("relation") or {}).get("attribute") or 0
+    theirs = (data.get("be_relation") or {}).get("attribute") or 0
+    return {"i_follow": mine in (1, 2, 6), "follows_me": theirs in (1, 2, 6), "relation": _ATTRS.get(mine, str(mine))}
+
+
+async def _set_follow(who: str, follow: bool) -> dict[str, Any]:
+    from .. import guard
+
+    cred = config.require_credential()
+    mid = await resolve_mid(who)
+    if str(mid) == str(cred.dedeuserid):
+        raise BiliError("invalid_argument", "不能关注 / 取关自己。")
+    u = user.User(mid, credential=cred)
+    before = await _relation_with(u)
+    if before["relation"] == "blocked":
+        raise BiliError("invalid_argument", f"你已把 {mid} 拉黑，先在网页上解除拉黑。")
+    params = {"mid": mid, "follow": follow}
+    if before["i_follow"] == follow:
+        return {**params, "changed": False, **before}
+    if output.settings.dry_run:
+        return {"dry_run": True, "action": "user.follow" if follow else "user.unfollow", "params": params}
+    guard.check("follow")
+    await u.modify_relation(user.RelationType.SUBSCRIBE if follow else user.RelationType.UNSUBSCRIBE)
+    guard.record("follow", params, "ok")
+    return {**params, "changed": True, **await _relation_with(u)}
+
+
+@app.command()
+def follow(who: str = USER_ARG) -> None:
+    """关注一个用户（已关注时什么也不做）。本地限制每小时最多 20 次关注 / 取关。"""
+    run(lambda: _set_follow(who, True))
+
+
+@app.command()
+def unfollow(who: str = USER_ARG) -> None:
+    """取消关注一个用户（没关注时什么也不做）。"""
+    run(lambda: _set_follow(who, False))
+
+
+@app.command()
+def following(
+    page: int = typer.Option(1, "--page", min=1, help="页码，从 1 开始。"),
+    size: int = typer.Option(50, "--size", min=1, max=50, help="每页条数。"),
+) -> None:
+    """我关注的人，按关注时间从新到旧。"""
+
+    async def body():
+        cred = config.require_credential()
+        data = await user.User(int(cred.dedeuserid), credential=cred).get_followings(pn=page, ps=size)
+        if output.settings.raw:
+            return data
+        return {
+            "page": page,
+            "total": data.get("total"),
+            "items": [
+                {
+                    "mid": f.get("mid"),
+                    "name": f.get("uname"),
+                    "sign": f.get("sign") or None,
+                    "mutual": f.get("attribute") == 6,
+                    "followed_at": iso_time(f.get("mtime")),
+                }
+                for f in data.get("list") or []
+            ],
+        }
+
+    run(body)
