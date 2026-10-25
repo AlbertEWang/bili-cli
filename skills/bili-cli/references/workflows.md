@@ -33,12 +33,36 @@ bili hot weekly                         # 每周必看
 bili video watch <BV>
 ```
 
-一次返回：`title`、`desc`、`tags`、`ai_summary`（B 站官方总结，可能为空）、`transcript.text`（字幕或语音转写）、`chapters`、`hot_comments`、`frames_sheet`（9 帧画面拼成的总览图路径，能看图就打开它）。
+一次返回：`title`、`desc`、`tags`、`ai_summary`（B 站官方总结，可能为空）、`transcript.text`（字幕或语音转写）、`chapters`、`hot_comments`、`danmaku.peaks`（观众反应最强烈的几个时刻和代表弹幕）、`frames_sheet`（画面总览图路径，能看图就打开它）。
 
 - 只要文字：`bili video subtitle <BV> --text`
 - 没字幕：`bili video transcribe <BV> --text`（需先 `bili asr setup local` 或 `asr setup cloud`）
 - 看更多画面：`bili video frames <BV> --every 30`、`--chapters`、`-q hd`（精确帧，需 ffmpeg）
 - 想让推荐越来越懂这个账号：`bili video watch <BV> --record`（写一次历史记录，不刷播放量）
+
+### 总览图怎么读
+
+一张图里按时间顺序排着很多帧（3 列）：
+
+- 每格左上角是编号和时间；红底“高能”的是弹幕最密集的时刻另外取的帧。
+- 每格下方黄字是“弹幕 N 条”，后面几行是观众对**这个画面**的反应，重复越多越靠前（白字带 ×N），一次性的是灰字。
+- 最底下的蓝色柱状图是整条视频的弹幕密度，竖线标出上面每一帧在时间轴上的位置。
+
+### 弹幕有时间差，别按同屏弹幕理解画面
+
+弹幕不是“这个画面的字幕”。观众看到一个镜头，要过一两秒才打完字发出去，发出后弹幕还会在屏幕上滚动六到八秒。所以：
+
+- **任何时刻屏幕上的弹幕，大多在说前几秒的镜头。** 例如画面已经切到另一个角色，屏幕上刷的“可爱”可能还在说上一个镜头里的大肥鱼。人类截图发给你时尤其要注意这一点。
+- `video watch` 和 `video frames --danmaku` 已经把每条弹幕按“发送时间 − 2 秒”算到它在反应的那一帧上，每格下方的反应就是对齐后的结果。引用观众反应时，以这个对齐结果为准。
+- 2 秒是估计值，镜头切得很快时仍可能差一个镜头。拿不准时用 `-q hd --at` 在前后各取一帧对照；`--every 2` 可以看清镜头顺序。
+- 默认的预览帧来自 B 站进度条缩略图，只有每隔几秒一张，取到的是离要求时间最近的那张（JSON 里的 `actual_time` 是真实时间）。要精确到秒用 `-q hd`。
+
+### 找观众反应最大的地方
+
+- 只要文字：`bili video danmaku <BV> --peaks 5`，返回 5 个时刻，每个附代表弹幕，比翻几百条弹幕省得多。
+- 要画面：`bili video frames <BV> --peaks 5`（`-q hd` 精确帧），每帧下方附弹幕反应。
+- 均匀取帧再看反应：`bili video frames <BV> --every 10 --danmaku`。
+- 高能时刻往往就是视频的笑点、泪点或名场面；分析爆款时，先看这几个时刻发生了什么，再对照热评。
 
 ## 4. 点赞、收藏、三连
 

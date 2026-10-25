@@ -77,5 +77,5 @@ bili auth status          # 已登录 → 继续；not_logged_in → 走下面�
 - 输出太长时：`video watch --max-chars 3000`、`video subtitle --text`、列表命令的 `--limit`。
 - `--raw` 返回 B 站原始数据；`--dry-run` 只预览写操作；`--wait` 遇到短暂的本地限流自动等待。这些参数写在命令任意位置都行。
 - `video frames --at` 支持小数秒，如 `--at 1:30.5`；加 `--danmaku` 给每帧附弹幕反应。
-- 读弹幕要记得：弹幕是看完画面才打的字，发出后还要在屏幕上滚好几秒，所以截图里叠着的弹幕多半在说前几秒的镜头。用 `watch` / `frames --danmaku` 给出的对齐结果，不要按同屏弹幕理解当前画面。
+- **弹幕有时间差。** 观众看到画面后才开始打字，发出后弹幕还要在屏幕上滚六到八秒，所以屏幕上（包括人类发给你的截图里）叠着的弹幕，多半在说前几秒的镜头，不是当前画面。`watch` 和 `frames --danmaku` 已经按“发送时间 − 2 秒”把每条弹幕对齐到它反应的那一帧，以对齐结果为准；拿不准时用 `-q hd --at` 在前后各取一帧对照。总览图怎么读、怎么找高能时刻，见 [references/workflows.md](references/workflows.md) 第 3 节。
 - 没有字幕的视频：`video watch` 会在配置了转写引擎时自动转写；未配置时提示用户运行 `bili asr setup local`。

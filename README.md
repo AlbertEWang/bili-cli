@@ -79,7 +79,7 @@ $ bili comment reply BV1pM… 3175… "谢谢！教程下周更新～"
 $ bili hot rank --zone tech --unseen
   ✓ 科技区 Top 30（已跳过看过的）
 $ bili video watch BV1KiJk67EQ9
-  ✓ AI 总结 · 字幕全文 · 热评 · 9 帧画面总览图          ← 多模态模型直接“看”画面
+  ✓ AI 总结 · 字幕全文 · 热评 · 弹幕高能时刻 · 画面总览图   ← 多模态模型直接“看”画面和观众反应
 $ bili dm send owner "今天科技区第二名很有意思：有人造了一块会飞的滑板……"
   ✓ 已发送
 ```
@@ -94,6 +94,9 @@ $ bili dm send owner "今天科技区第二名很有意思：有人造了一块�
 
 ### 🧠 真的“看懂”视频
 `bili video watch` 一条命令拿全：**标题简介标签 + B 站 AI 总结 + 字幕全文 + 分段章节 + 热评 + 弹幕高能时刻 + 画面总览图**。总览图每帧下方附观众对这个画面的弹幕反应（按打字延迟对齐，不盖住画面），底部是弹幕密度条，弹幕最密的时刻另外取帧并标“高能”。
+<p align="center"><img src="https://raw.githubusercontent.com/kukemc/bili-cli/main/assets/danmaku_sheet.jpg" alt="bili video frames --danmaku 生成的总览图：每帧下方是观众对这个画面的弹幕反应，底部是弹幕密度" width="860"></p>
+<p align="center"><sub><code>bili video frames BV1bGJR6HErW -q hd --danmaku</code> 的总览图（节选 6 帧）。0:24 那一眼 110 条弹幕刷屏，被标成“高能”。<br>弹幕是看完画面才打的字，屏幕上叠着的弹幕往往在说前几秒的镜头；这里已经按打字延迟把每条弹幕对齐到它反应的那一帧。<br>画面来自 B 站视频《所以说我很羡慕你啊…大肥鱼》（UP 主 a网友爱顺音），README 版去掉了涉及时政的弹幕。</sub></p>
+
 没有字幕？一键部署本地语音转写 **Qwen3-ASR**——有 NVIDIA 显卡自动用 GPU，**31 分钟的视频 2 分钟转完**；没显卡也能用 CPU 版，或者接云端服务。
 
 ### 💬 像 UP 主一样社交

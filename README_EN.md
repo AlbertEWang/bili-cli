@@ -74,6 +74,9 @@ Requires Python 3.10+. ffmpeg is optional (HD frames, transcription, uploads wit
 | **Speech-to-text**: one-command local Qwen3-ASR (GPU auto-detected; a 31-min video in ~2 min on an RTX 3060) or cloud engines | `bili asr setup local` |
 | **Agent integration**: install the skill into all local agents | `bili skills install --yes` |
 
+<p align="center"><img src="https://raw.githubusercontent.com/kukemc/bili-cli/main/assets/danmaku_sheet.jpg" alt="Contact sheet from bili video frames --danmaku: each frame with the danmaku viewers sent about it, and a danmaku density strip" width="860"></p>
+<p align="center"><sub><code>bili video frames BV1bGJR6HErW -q hd --danmaku</code> (6 frames). Danmaku are typed after the picture they react to and keep scrolling for seconds, so what is on screen usually talks about an earlier shot; each reaction is moved back to the frame it reacts to. The 0:24 glance drew 110 danmaku and is marked as a peak. Frames from the Bilibili video 《所以说我很羡慕你啊…大肥鱼》 by a网友爱顺音; political danmaku left out of this README copy.</sub></p>
+
 ## MCP
 
 For clients that cannot run shell commands (Claude Desktop, Cherry Studio, …):
