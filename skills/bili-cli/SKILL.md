@@ -40,7 +40,7 @@ bili auth status          # 已登录 → 继续；not_logged_in → 走下面�
 | 看评论里的图片 | `comment list` 的 `images` 给出地址，`bili comment images <url>` 存到本地再看 |
 | 点赞 / 收藏 / 三连 | `bili video like <BV>`、`bili video fav <BV>`、`bili video triple <BV>`（先 `video relation` 看是否已操作过） |
 | 私信 | `bili dm list --unread`、`bili dm read <UID>`、`bili dm send <UID|owner> "内容"` |
-| 实时收私信、陪人聊天 | `bili dm watch`（每来一条新私信输出一行 JSON）；`bili dm watch --max-events 1` 等下一条再退出，回复前先 `bili dm read <UID>` 看上下文 |
+| 实时收私信、陪人聊天 | `bili dm watch --backlog`（先吐出积压的未读，再每来一条新私信输出一行 JSON；网络断了会自己重试补齐，不用重启）；`--max-events 1` 等下一条再退出；回复前先 `bili dm read <UID>` 看上下文；发图用 `bili dm send <UID> "文字" --image a.png` |
 | 发动态（图文、@ 人） | `bili dynamic post "内容" --image a.png --at 昵称` |
 | 发投票动态 / 看结果 | `bili dynamic post "下期做什么？" --vote "下期" --option A --option B`；`bili dynamic vote <vote_id>` |
 | 合集 | `bili season list / create / add <合集ID> <BV…> / remove / delete` |

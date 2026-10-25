@@ -201,7 +201,8 @@ bili mcp install --yes      # 写入配置（先备份为 .bak，只改 bili-cli
 | `bili user info / videos` | 任意用户的资料、粉丝数、投稿列表（按播放 / 收藏排序，按关键词筛系列）；动态用 `bili dynamic list --mid` |
 | `bili comment list / replies / post / reply / like / delete / check / pin / emotes / images` | 评论读写、`--unreplied` 只看没回过的、置顶自己作品下的评论；`--at <UID|昵称|owner>` 真正的 @，`--image` 带图，`emotes` 查可用表情；`--type dynamic/draw/article` 用于动态和专栏 |
 | `bili dm list / read / send` | 私信 |
-| `bili dm watch` | 实时接收新私信（推送 + 20 秒兜底轮询，每条一行 JSON） |
+| `bili dm watch` | 实时接收新私信（推送 + 20 秒兜底轮询 + 定期全量对账，每条一行 JSON；`--backlog` 先吐积压） |
+| `bili dm send --image` | 私信带图片 |
 | `bili dm autoreply show / set / on / off / keyword add / keyword delete` | B 站自带的私信自动回复（1000 粉以上） |
 | `bili owner set / show / clear` | 设置“主人” |
 | `bili dynamic post / list / show / delete / vote` | 动态：图文（最多 9 张）、`--at` @ 人、`--vote` 投票及结果 |

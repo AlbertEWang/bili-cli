@@ -37,6 +37,8 @@ def _content(msg: dict[str, Any]) -> str | None:
         data = json.loads(raw) if isinstance(raw, str) else (raw or {})
     except json.JSONDecodeError:
         return raw
+    if not isinstance(data, dict):   # some system / card messages carry a bare number or string
+        return str(data) if data not in (None, "") else None
     if msg.get("msg_type") == 1:
         return data.get("content")
     if msg.get("msg_type") == 2:
@@ -178,21 +180,64 @@ async def _may_message(cred, talker: int) -> str | None:
     return None
 
 
+MAX_DM_IMAGES = 3
+
+
+async def _send_one(cred, me: int, talker: int, msg_type: int, content: str) -> dict[str, Any]:
+    data = {
+        "msg[sender_uid]": me, "msg[receiver_id]": talker, "msg[receiver_type]": 1,
+        "msg[msg_type]": msg_type, "msg[msg_status]": 0, "msg[content]": content,
+        # bilibili-api hard-codes one dev_id for everyone; use a per-install one like a real browser
+        "msg[dev_id]": config.device_id(), "msg[new_face_version]": 0,
+        "msg[timestamp]": int(time.time()), "from_filework": 0, "build": 0, "mobi_app": "web",
+    }
+    try:
+        return await Api(**SESSION_API["operate"]["send_msg"], credential=cred).update_params(w_sender_uid=me, w_receiver_id=talker).update_data(**data).result or {}
+    except Exception as exc:  # noqa: BLE001
+        if getattr(exc, "code", None) == 2:   # B 站 answers 「非法参数」 for official / system accounts that cannot be messaged
+            raise BiliError("invalid_argument", "这个账号不接受私信（官方号、系统通知号等）。", hint="不要重试；这类会话里的消息只是通知，不用回复。") from exc
+        raise
+
+
+async def _image_content(cred, path: Path) -> str:
+    """Upload through the same image endpoint the web chat uses and build the msg_type 2 payload."""
+    from bilibili_api import Picture
+    from bilibili_api.dynamic import upload_image
+
+    pic = Picture.from_file(str(path))
+    res = await upload_image(pic, cred)
+    return json.dumps({"url": res["image_url"], "height": res["image_height"], "width": res["image_width"],
+                       "imageType": (path.suffix.lstrip(".").lower() or "png").replace("jpg", "jpeg"), "original": 1,
+                       "size": round(path.stat().st_size / 1024, 2)})
+
+
 @app.command()
 def send(
     uid: str = typer.Argument(..., help="对方 UID，或 owner（主人）。"),
-    text: Optional[str] = typer.Argument(None, help=f"消息内容，最多 {MAX_LEN} 字；也可用 --file。"),
+    text: Optional[str] = typer.Argument(None, help=f"消息内容，最多 {MAX_LEN} 字；也可用 --file。只发图片时可以不写。"),
     file: Optional[Path] = typer.Option(None, "--file", "-f", help="从文件读取内容，`-` 表示 stdin。"),
+    image: list[Path] = typer.Option([], "--image", "-i", help=f"随私信发的图片（png / jpg / gif / webp），可重复传入，最多 {MAX_DM_IMAGES} 张；每张图是单独一条消息，排在文字后面。"),
     allow_new: bool = typer.Option(False, "--allow-new", help="允许给从没联系过、也不是互关的人发第一条私信（容易被判为骚扰，慎用）。"),
 ) -> None:
-    """发私信 / 回复私信。被拒绝时不要自动重发。"""
+    """发私信 / 回复私信，可以带图片。被拒绝时不要自动重发。"""
 
     async def body():
         cred = config.require_credential()
         talker = _resolve_uid(uid)
-        content = read_text(text, file)
+        content = read_text(text, file) if (text is not None or file is not None) else ""
+        if not content and not image:
+            raise BiliError("invalid_argument", "没有要发的内容：写一段文字，或者用 --image 带图片。")
         if len(content) > MAX_LEN:
             raise BiliError("invalid_argument", f"私信最多 {MAX_LEN} 字，当前 {len(content)} 字。", hint="精简后再发，不要拆成多条连发。")
+        if len(image) > MAX_DM_IMAGES:
+            raise BiliError("invalid_argument", f"一次最多 {MAX_DM_IMAGES} 张图片，收到 {len(image)} 张。")
+        for p in image:
+            if not p.is_file():
+                raise BiliError("invalid_argument", f"找不到图片：{p}")
+            if p.suffix.lower() not in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
+                raise BiliError("invalid_argument", f"不支持的图片格式：{p.name}", hint="用 png / jpg / gif / webp。")
+            if p.stat().st_size > 20 * 1024 * 1024:
+                raise BiliError("invalid_argument", f"图片太大（超过 20MB）：{p.name}")
         if talker == int(cred.dedeuserid or 0):
             raise BiliError("invalid_argument", "不能给自己发私信。")
         reason = await _may_message(cred, talker)
@@ -202,22 +247,20 @@ def send(
                 "对方没有给你发过私信，也不是互关好友。",
                 hint="主动私信陌生人容易被判为骚扰；确有必要时加 --allow-new。",
             )
-        params = {"uid": talker, "text": content, "allowed_because": reason or "allow_new"}
+        params = {"uid": talker, "text": content or None, "images": [str(p) for p in image] or None, "allowed_because": reason or "allow_new"}
         if output.settings.dry_run:
             return {"dry_run": True, "action": "dm.send", "params": params}
         me = int(cred.dedeuserid)
-        data = {
-            "msg[sender_uid]": me, "msg[receiver_id]": talker, "msg[receiver_type]": 1,
-            "msg[msg_type]": 1, "msg[msg_status]": 0,
-            "msg[content]": json.dumps({"content": content}, ensure_ascii=False),
-            # bilibili-api hard-codes one dev_id for everyone; use a per-install one like a real browser
-            "msg[dev_id]": config.device_id(), "msg[new_face_version]": 0,
-            "msg[timestamp]": int(time.time()), "from_filework": 0, "build": 0, "mobi_app": "web",
-        }
+        keys = []
         guard.check("dm")
-        res = await Api(**SESSION_API["operate"]["send_msg"], credential=cred).update_params(w_sender_uid=me, w_receiver_id=talker).update_data(**data).result
-        guard.record("dm", params, {"msg_key": (res or {}).get("msg_key")})
-        return {**params, "sent": True, "msg_key": (res or {}).get("msg_key")}
+        if content:
+            res = await _send_one(cred, me, talker, 1, json.dumps({"content": content}, ensure_ascii=False))
+            keys.append(res.get("msg_key"))
+        for p in image:
+            res = await _send_one(cred, me, talker, 2, await _image_content(cred, p))
+            keys.append(res.get("msg_key"))
+        guard.record("dm", params, {"msg_keys": keys})
+        return {**params, "sent": True, "msg_keys": keys}
 
     run(body)
 
