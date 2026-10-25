@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- 命令不再可能无限卡住：每条命令有总时限（默认 3 分钟，环境变量 `BILI_CLI_TIMEOUT` 可改，0 表示不限），到点中止并返回 `network_error`（`detail.timeout`）。连事件循环本身被卡住、甚至输出管道写不进去的情况，也有看门狗线程兜底，保证进程退出。投稿、换源、语音转写、模型安装、`dm watch`、带 `--wait` 的登录不受这个上限限制，`video watch` 的上限是 1 小时，`video frames` 是 15 分钟。起因是另一台机器上 `bili dm read` 卡了约 12 分钟。
+
 ## [1.1.0] - 2026-10-25
 
 ### Added

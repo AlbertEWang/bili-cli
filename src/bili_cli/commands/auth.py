@@ -115,6 +115,14 @@ async def _wait_pending(pending: dict, wait: int) -> dict:
         await asyncio.sleep(POLL_INTERVAL_SECONDS)
 
 
+def _wait_deadline(wait: int) -> float | None:
+    """--wait blocks on purpose; the overall limit must leave room for it."""
+    from ..runtime import default_deadline
+
+    limit = default_deadline()
+    return None if limit is None else max(limit, wait + 120)
+
+
 @app.command()
 def login(
     qr_out: Optional[Path] = typer.Option(
@@ -155,7 +163,7 @@ def login(
             "next": "请人类用哔哩哔哩 App 扫描二维码，然后运行 `bili auth status --wait 120`。",
         }
 
-    run(body)
+    run(body, deadline=_wait_deadline(wait))
 
 
 @app.command()
@@ -183,7 +191,7 @@ def status(
             refreshed = True
         return {"logged_in": True, "user": await _self_info(cred), "refreshed": refreshed}
 
-    run(body)
+    run(body, deadline=_wait_deadline(wait))
 
 
 @app.command()

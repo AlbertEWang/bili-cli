@@ -439,7 +439,7 @@ def video_(
             "next": f"稿件需要审核，用 `bili upload status {res.get('bvid')}` 查看进度。",
         }
 
-    run(body)
+    run(body, deadline=None)  # uploading a large video takes as long as it takes
 
 
 def _archive(a: dict[str, Any]) -> dict[str, Any]:
@@ -753,7 +753,7 @@ def edit(
         guard.record("upload_edit", {"bvid": bvid, "changes": diff}, "ok")
         return {"bvid": bvid, "changes": diff, "next": f"改动需要重新审核；B 站可能丢弃个别标签，用 `bili upload status {bvid}` 确认实际生效的内容。"}
 
-    run(body)
+    run(body, deadline=None)  # --video uploads a replacement file
 
 
 def video_rates(stat: dict[str, Any]) -> dict[str, float | None]:

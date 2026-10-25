@@ -297,7 +297,7 @@ def watch(
         return await _watch(duration, max_events, only, include_self, poll, mark_read, no_push, backlog, resync)
 
     try:
-        run(body)
+        run(body, deadline=None)  # runs until --for / --max-events; each sync round has its own timeout
     except KeyboardInterrupt:
         output.success({"stopped": "interrupted"})
         sys.exit(0)

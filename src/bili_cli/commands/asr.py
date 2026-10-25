@@ -41,7 +41,7 @@ def setup_local(
         # setup runs its own event loop for the self-test, so keep it off this one
         return await asyncio.to_thread(asr_setup.setup_local, dev, model, github_proxy, hf_mirror)
 
-    run(body)
+    run(body, deadline=None)  # downloads and installs a model
 
 
 @setup_app.command("cloud")

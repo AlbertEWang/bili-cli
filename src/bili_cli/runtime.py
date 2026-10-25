@@ -50,13 +50,92 @@ def web_client(cred=None, referer: str | None = None, timeout: float = 20):
     return httpx.AsyncClient(headers=headers, cookies=cookies, timeout=timeout)
 
 
-def run(coro_fn: Callable[[], Awaitable[Any]]) -> None:
-    """Run a command body, print its result as JSON, and map every failure to a BiliError."""
+DEFAULT_DEADLINE = 180.0  # seconds; a read command that runs longer than this is stuck, not slow
+HARD_EXIT_GRACE = 20.0
+_DEFAULT = object()
+
+
+def default_deadline() -> float | None:
+    """BILI_CLI_TIMEOUT overrides the limit (seconds); 0 turns it off."""
+    import os
+
+    raw = os.environ.get("BILI_CLI_TIMEOUT")
+    try:
+        value = float(raw) if raw else DEFAULT_DEADLINE
+    except ValueError:
+        value = DEFAULT_DEADLINE
+    return value if value > 0 else None
+
+
+def _timeout_error(deadline: float) -> BiliError:
+    return BiliError(
+        "network_error",
+        f"命令超过 {int(deadline)} 秒还没完成，已中止（多半是和 B 站的连接卡住了）。",
+        hint="稍后重试即可，读操作重试是安全的。确实需要更久时，设置环境变量 BILI_CLI_TIMEOUT（秒，0 表示不限）。",
+        detail={"timeout": int(deadline)},
+    )
+
+
+def _hard_exit(deadline: float) -> None:
+    """Last resort from a watchdog thread when the event loop itself is stuck and cannot be cancelled.
+
+    The error is written from yet another thread: if stdout is a pipe nobody reads (a full pipe is one
+    way a process "hangs"), the write would block too, and the process must exit anyway.
+    """
+    import json
+    import os
+    import threading
+
+    err = _timeout_error(deadline)
+    doc = (json.dumps({"ok": False, "error": err.to_dict()}, ensure_ascii=False) + "\n").encode("utf-8")
+
+    def write() -> None:
+        try:
+            sys.stdout.buffer.write(doc)
+            sys.stdout.flush()
+        except Exception:  # noqa: BLE001
+            pass
+
+    writer = threading.Thread(target=write, daemon=True)
+    writer.start()
+    writer.join(2)
+    os._exit(err.exit_code)
+
+
+async def _within(coro_fn: Callable[[], Awaitable[Any]], deadline: float | None) -> Any:
+    if not deadline:
+        return await coro_fn()
+    task = asyncio.ensure_future(coro_fn())
+    # asyncio.wait, not wait_for: wait_for can swallow the cancellation before Python 3.12
+    done, _ = await asyncio.wait({task}, timeout=deadline)
+    if task in done:
+        return task.result()
+    task.cancel()
+    await asyncio.wait({task}, timeout=5)
+    raise _timeout_error(deadline)
+
+
+def run(coro_fn: Callable[[], Awaitable[Any]], deadline: Any = _DEFAULT) -> None:
+    """Run a command body, print its result as JSON, and map every failure to a BiliError.
+
+    Every command gets an overall deadline (default_deadline(), 3 minutes) so a stalled connection
+    turns into a network_error instead of a process that never returns; long jobs pass their own
+    deadline or None. If the event loop is blocked and cannot even be cancelled, a watchdog thread
+    prints the same error and exits HARD_EXIT_GRACE seconds later.
+    """
+    import threading
+
     if sys.platform == "win32":
         # The proactor loop spams "Event loop is closed" on exit with some HTTP clients.
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    limit = default_deadline() if deadline is _DEFAULT else deadline
+    watchdog = None
+    if limit:
+        watchdog = threading.Timer(limit + HARD_EXIT_GRACE, _hard_exit, args=(limit,))
+        watchdog.daemon = True
+        watchdog.start()
     try:
-        result = asyncio.run(coro_fn())
+        result = asyncio.run(_within(coro_fn, limit))
     except KeyboardInterrupt:
         raise
     except BaseException as exc:  # noqa: BLE001 - every failure must become JSON
@@ -68,6 +147,9 @@ def run(coro_fn: Callable[[], Awaitable[Any]]) -> None:
     else:
         if result is not None:
             output.success(result)
+    finally:
+        if watchdog is not None:
+            watchdog.cancel()
 
 
 _BV_RE = re.compile(r"(BV[0-9A-Za-z]{10})")

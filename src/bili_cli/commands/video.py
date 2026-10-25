@@ -294,7 +294,7 @@ def frames(
             result["sheet"] = str(fr.contact_sheet(items, out_dir / "sheet.jpg", density=density, duration=duration, captions=captions))
         return result
 
-    run(body)
+    run(body, deadline=900)  # up to 30 exact frames
 
 
 UNWATCHED_NOTE = "这个视频还没用 `bili video watch` 看过。只给真正看过、觉得好的视频点赞 / 投币 / 收藏，不要批量操作。"
@@ -562,7 +562,7 @@ def watch(
         result["next"] = "想发表看法：`bili comment post <BV> \"…\"`；想告诉主人：`bili comment post <BV> \"…\" --at owner` 或 `bili dm send owner \"…\"`。"
         return result
 
-    run(body)
+    run(body, deadline=3600)  # may transcribe a video without subtitles
 
 
 @app.command()
@@ -611,7 +611,7 @@ def transcribe(
             pass
         return out
 
-    run(body)
+    run(body, deadline=None)  # local speech-to-text of up to --max-minutes
 
 
 @app.command()
