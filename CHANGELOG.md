@@ -6,6 +6,11 @@
 
 ### Fixed
 - 命令不再可能无限卡住：每条命令有总时限（默认 3 分钟，环境变量 `BILI_CLI_TIMEOUT` 可改，0 表示不限），到点中止并返回 `network_error`（`detail.timeout`）。连事件循环本身被卡住、甚至输出管道写不进去的情况，也有看门狗线程兜底，保证进程退出。投稿、换源、语音转写、模型安装、`dm watch`、带 `--wait` 的登录不受这个上限限制，`video watch` 的上限是 1 小时，`video frames` 是 15 分钟。起因是另一台机器上 `bili dm read` 卡了约 12 分钟。
+- 单个读请求（GET）最多等 45 秒：底层 curl 的 30 秒超时在现场有时拖到 52 秒、122 秒、313 秒、378 秒才触发，现在到点直接放弃并报 `network_error`。写请求（发评论、私信等）不在这里截断，免得半路取消造成重复发送。`dm watch` 同样受益。
+- 卡住时能分清原因：`network_error` 会带上 `detail.stalled_seconds`（整个进程停住了，比如机器或容器被挂起、CPU 被占满）或 `detail.loop_blocked_seconds`（bili-cli 的事件循环被卡住），`dm watch` 的 warning 事件也带。
+
+### Added
+- 环境变量 `BILI_CLI_DEBUG=1`：把每个请求的方法、地址、耗时和失败原因打到 stderr，方便排查卡顿。
 
 ## [1.1.0] - 2026-10-25
 

@@ -86,7 +86,9 @@ def _hard_exit(deadline: float) -> None:
     import os
     import threading
 
-    err = _timeout_error(deadline)
+    from . import health
+
+    err = health.enrich(_timeout_error(deadline))
     doc = (json.dumps({"ok": False, "error": err.to_dict()}, ensure_ascii=False) + "\n").encode("utf-8")
 
     def write() -> None:
@@ -103,16 +105,22 @@ def _hard_exit(deadline: float) -> None:
 
 
 async def _within(coro_fn: Callable[[], Awaitable[Any]], deadline: float | None) -> Any:
-    if not deadline:
-        return await coro_fn()
-    task = asyncio.ensure_future(coro_fn())
-    # asyncio.wait, not wait_for: wait_for can swallow the cancellation before Python 3.12
-    done, _ = await asyncio.wait({task}, timeout=deadline)
-    if task in done:
-        return task.result()
-    task.cancel()
-    await asyncio.wait({task}, timeout=5)
-    raise _timeout_error(deadline)
+    from . import health
+
+    probe = asyncio.ensure_future(health.loop_probe())
+    try:
+        if not deadline:
+            return await coro_fn()
+        task = asyncio.ensure_future(coro_fn())
+        # asyncio.wait, not wait_for: wait_for can swallow the cancellation before Python 3.12
+        done, _ = await asyncio.wait({task}, timeout=deadline)
+        if task in done:
+            return task.result()
+        task.cancel()
+        await asyncio.wait({task}, timeout=5)
+        raise _timeout_error(deadline)
+    finally:
+        probe.cancel()
 
 
 def run(coro_fn: Callable[[], Awaitable[Any]], deadline: Any = _DEFAULT) -> None:
@@ -125,9 +133,13 @@ def run(coro_fn: Callable[[], Awaitable[Any]], deadline: Any = _DEFAULT) -> None
     """
     import threading
 
+    from . import health
+
     if sys.platform == "win32":
         # The proactor loop spams "Event loop is closed" on exit with some HTTP clients.
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    health.start_heartbeat()
+    health.install_request_guard()
     limit = default_deadline() if deadline is _DEFAULT else deadline
     watchdog = None
     if limit:
@@ -143,7 +155,7 @@ def run(coro_fn: Callable[[], Awaitable[Any]], deadline: Any = _DEFAULT) -> None
 
         if isinstance(exc, (typer.Exit, SystemExit)):
             raise
-        output.fail(from_exception(exc))
+        output.fail(health.enrich(from_exception(exc)))
     else:
         if result is not None:
             output.success(result)

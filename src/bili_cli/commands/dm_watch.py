@@ -22,7 +22,7 @@ from typing import Any, Optional
 import typer
 from bilibili_api.utils.network import Api
 
-from .. import config, im_push, output
+from .. import config, health, im_push, output
 from ..errors import BiliError, from_exception
 from ..runtime import WEB_HEADERS, iso_time, run
 from .dm import ACK_URL, MSG_TYPES, _content, _names, _page, _resolve_uid
@@ -198,7 +198,7 @@ async def _watch(duration: float, max_events: int, only: Optional[int], include_
             except Exception as exc:  # noqa: BLE001
                 if isinstance(exc, TimeoutError) and not str(exc):
                     exc = BiliError("network_error", f"一轮同步超过 {ROUND_TIMEOUT} 秒没完成，已放弃本轮，稍后重试。")
-                err = exc if isinstance(exc, BiliError) else from_exception(exc)
+                err = health.enrich(exc if isinstance(exc, BiliError) else from_exception(exc))
                 if err.code in ("risk_control", "not_logged_in", "auth_expired"):
                     _emit({"event": "error", "error": err.to_dict()})
                     stop_reason["value"] = err.code

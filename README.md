@@ -264,7 +264,7 @@ bili mcp install --yes      # 写入配置（先备份为 .bak，只改 bili-cli
 
 设置环境变量 `BILI_CLI_HOME` 指向不同目录，每个目录是一套独立的登录、限流和审计日志。本项目不提供批量控制多账号的功能。
 
-**命令卡住怎么办？** 不会无限卡住：普通命令超过 3 分钟没完成会自己中止，返回 `network_error`，Agent 重试即可；投稿、语音转写、`dm watch` 这类长任务不受限制。用环境变量 `BILI_CLI_TIMEOUT` 改上限（秒，0 表示不限）。
+**命令卡住怎么办？** 不会无限卡住：普通命令超过 3 分钟没完成会自己中止，返回 `network_error`，Agent 重试即可；投稿、语音转写、`dm watch` 这类长任务不受限制。用环境变量 `BILI_CLI_TIMEOUT` 改上限（秒，0 表示不限）。单个读请求最多等 45 秒。报错里带 `stalled_seconds` 说明整个进程被暂停过（机器或容器挂起、CPU 被占满），不是网络问题；排查时加 `BILI_CLI_DEBUG=1`，stderr 会打出每个请求的耗时。
 
 </details>
 
