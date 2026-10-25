@@ -250,7 +250,7 @@ def send(
         params = {"uid": talker, "text": content or None, "images": [str(p) for p in image] or None, "allowed_because": reason or "allow_new"}
         if output.settings.dry_run:
             return {"dry_run": True, "action": "dm.send", "params": params}
-        me = int(cred.dedeuserid)
+        me = config.my_mid(cred)
         keys = []
         guard.check("dm")
         if content:

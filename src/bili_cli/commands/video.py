@@ -377,7 +377,7 @@ def coin(
 async def _folders(cred, v: video.Video | None = None) -> list[dict[str, Any]]:
     from bilibili_api import favorite_list
 
-    data = await favorite_list.get_video_favorite_list(int(cred.dedeuserid), v, credential=cred)
+    data = await favorite_list.get_video_favorite_list(config.my_mid(cred), v, credential=cred)
     return [
         {"id": f.get("id"), "title": f.get("title"), "count": f.get("media_count"), "has_video": bool(f.get("fav_state")), "default": f.get("attr") == 0}
         for f in data.get("list") or []

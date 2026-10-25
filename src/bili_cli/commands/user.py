@@ -207,7 +207,7 @@ def following(
 
     async def body():
         cred = config.require_credential()
-        data = await user.User(int(cred.dedeuserid), credential=cred).get_followings(pn=page, ps=size)
+        data = await user.User(config.my_mid(cred), credential=cred).get_followings(pn=page, ps=size)
         if output.settings.raw:
             return data
         return {

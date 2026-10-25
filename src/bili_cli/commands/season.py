@@ -82,7 +82,7 @@ async def own_episode(cred, video_id: str) -> dict[str, Any]:
             raise BiliError("api_error", f"{ref['bvid']} 还没有分 P 信息，稍后再试。")
         return {"title": arc.get("title"), "aid": arc.get("aid"), "cid": pages[0]["cid"], "charging_pay": 0}
     info = await video.Video(**ref, credential=cred).get_info()
-    if info.get("owner", {}).get("mid") != int(cred.dedeuserid):
+    if info.get("owner", {}).get("mid") != config.my_mid(cred):
         raise BiliError("invalid_argument", f"{info.get('bvid')} 不是你自己的视频，不能加进你的合集。")
     return {"title": info.get("title"), "aid": info.get("aid"), "cid": info.get("cid"), "charging_pay": 0}
 

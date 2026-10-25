@@ -156,7 +156,7 @@ def post(
             created = await (
                 Api(url=VOTE_CREATE_URL, method="POST", verify=True, credential=cred, no_csrf=True, json_body=True)
                 .update_params(csrf=cred.bili_jct)
-                .update_data(**vote_payload(vote_title, vote_option, vote_multi, vote_days, int(cred.dedeuserid)))
+                .update_data(**vote_payload(vote_title, vote_option, vote_multi, vote_days, config.my_mid(cred)))
                 .result
             )
             build.add_vote(created["vote_id"])
@@ -182,7 +182,7 @@ def list_(
         if uid is None:
             if cred is None:
                 raise BiliError("not_logged_in", "未登录时需要用 --mid 指定用户。")
-            uid = int(cred.dedeuserid)
+            uid = config.my_mid(cred)
         data = await user.User(uid, credential=cred).get_dynamics_new(offset=offset)
         if output.settings.raw:
             return data

@@ -77,6 +77,17 @@ def require_credential() -> Credential:
     return cred
 
 
+def my_mid(cred: Credential) -> int:
+    """The logged-in UID. Credential files written by hand sometimes leave DedeUserID out."""
+    if not cred.dedeuserid:
+        raise BiliError(
+            "auth_expired",
+            "登录凭证里缺少 DedeUserID（你的 UID）。",
+            hint="运行 `bili auth login` 重新扫码登录；手动导入凭证时要带上 dedeuserid。",
+        )
+    return int(cred.dedeuserid)
+
+
 def optional_credential() -> Credential:
     """Credential if logged in, otherwise an anonymous one (more data is visible when logged in)."""
     return load_credential() or Credential()

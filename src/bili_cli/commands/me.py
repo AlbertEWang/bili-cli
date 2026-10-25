@@ -84,13 +84,16 @@ def _pct(basis_points: Any) -> float | None:
 
 
 def summarize_stats(overview: dict, fans: dict, source: dict, compare: dict, survey: dict) -> dict[str, Any]:
+    # a new account with no data gets null for overview / compare / audience and {"<date>": null} for survey
+    overview, fans, source, compare, survey = overview or {}, fans or {}, source or {}, compare or {}, survey or {}
+
     def pair(key: str) -> dict[str, Any]:
         return {"now": overview.get(key), "previous": overview.get(f"{key}_last")}
 
     platforms = {k.removeprefix("new_"): v for k, v in (source.get("play_proportion") or {}).items() if k.startswith("new_") and v}
     audience = source.get("audience_proportion") or {}
     viewers = (audience.get("fans") or 0) + (audience.get("guest") or 0)
-    day = next(iter(survey.values()), {}) if survey else {}
+    day = next(iter(survey.values()), None) or {}
     return {
         "data_date": str(overview.get("log_date") or fans.get("log_date") or "") or None,
         "plays": pair("play"),
