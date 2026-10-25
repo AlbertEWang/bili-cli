@@ -174,16 +174,23 @@ async def _load_danmaku(v: video.Video, page: int) -> list[tuple[float, str]]:
     return rx.load(await v.get_danmakus(page_index=page - 1))
 
 
-def _annotate(items: list[dict[str, Any]], dms: list[tuple[float, str]], duration: float, peak_times: list[float] = ()) -> None:
-    """Credit reactions to each frame and flag the frames that show a reaction peak."""
+def _annotate(
+    items: list[dict[str, Any]], dms: list[tuple[float, str]], duration: float, peak_times: list[float] = ()
+) -> list[list[dict[str, Any]]]:
+    """Credit reactions to each frame and flag the frames that show a reaction peak.
+
+    Returns the longer per-frame lists for the contact sheet; the JSON keeps the top few to stay small.
+    """
     from .. import reactions as rx
 
-    for it, r in zip(items, rx.assign(dms, [it["actual_time"] for it in items], duration)):
-        it["danmaku"] = r
+    full = rx.assign(dms, [it["actual_time"] for it in items], duration, k=rx.CAPTION_POOL)
+    for it, r in zip(items, full):
+        it["danmaku"] = {"count": r["count"], "top": r["top"][: rx.TOP_PER_FRAME]}
     for p in peak_times:  # a peak frame may have snapped to the nearest thumbnail, a few seconds away
         nearest = min(items, key=lambda it: abs(it["actual_time"] - p), default=None)
         if nearest is not None and abs(nearest["actual_time"] - p) <= max(3.0, duration / 60):
             nearest["peak"] = True
+    return [r["top"] for r in full]
 
 
 def _density_bins(duration: float) -> int:
@@ -269,8 +276,9 @@ def frames(
             it["time_str"] = fr.fmt_time(it["actual_time"])
             if titles:
                 it["chapter"] = next((name for start, name in reversed(titles) if it["actual_time"] >= start), None)
+        captions = None
         if with_danmaku or peaks:
-            _annotate(items, dms, duration, [p["time"] for p in peak_list] if peaks else [])
+            captions = _annotate(items, dms, duration, [p["time"] for p in peak_list] if peaks else [])
         result: dict[str, Any] = {
             "bvid": info.get("bvid"),
             "page": page,
@@ -283,7 +291,7 @@ def frames(
             result["danmaku"] = {"total": len(dms), "note": rx.NOTE, "peaks": _peak_cards(peak_list)}
         if sheet and items:
             density = rx.density(dms, duration, _density_bins(duration)) if dms else None
-            result["sheet"] = str(fr.contact_sheet(items, out_dir / "sheet.jpg", density=density, duration=duration))
+            result["sheet"] = str(fr.contact_sheet(items, out_dir / "sheet.jpg", density=density, duration=duration, captions=captions))
         return result
 
     run(body)
@@ -535,11 +543,13 @@ def watch(
             out_dir.mkdir(parents=True, exist_ok=True)
             try:
                 items = fr.dedupe(await fr.grab_preview(snap, times, out_dir))
-                density = None
+                density = captions = None
                 if dms:
-                    _annotate(items, dms, duration, extra)
+                    captions = _annotate(items, dms, duration, extra)
                     density = rx.density(dms, duration, _density_bins(duration))
-                result["frames_sheet"] = str(fr.contact_sheet(items, out_dir / "sheet.jpg", density=density, duration=duration))
+                result["frames_sheet"] = str(
+                    fr.contact_sheet(items, out_dir / "sheet.jpg", density=density, duration=duration, captions=captions)
+                )
             except BiliError:
                 result["frames_sheet"] = None
 

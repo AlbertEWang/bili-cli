@@ -181,8 +181,10 @@ CJK_FONTS = (
     "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
     "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
 )
-CAPTION_LINES = 3
+CAPTION_LINES = 7  # lines of reactions under each frame, packed side by side
 CAPTION_SIZE = 18
+FLOW_SIZE = 16
+ITEM_MAX_CHARS = 22
 DENSITY_HEIGHT = 64
 
 
@@ -219,17 +221,47 @@ def _fit(draw, text: str, font, width: int) -> str:
     return text + "…"
 
 
+def _flow(draw, x: int, y: int, items: list[dict[str, Any]], font, width: int, lines: int) -> None:
+    """Reactions packed like a paragraph: short ones share a line, the most repeated come first."""
+    line_h = FLOW_SIZE + 5
+    sep = "  ·  "
+    sep_w = draw.textlength(sep, font=font)
+    cx, row = x, 0
+    for item in items:
+        text = _printable(item["text"])
+        if not text:
+            continue
+        if len(text) > ITEM_MAX_CHARS:
+            text = text[: ITEM_MAX_CHARS - 1] + "…"
+        token = text + (f" ×{item['n']}" if item["n"] > 1 else "")
+        w = draw.textlength(token, font=font)
+        if cx > x and cx + w > x + width:
+            row, cx = row + 1, x
+        if row >= lines:
+            return
+        if w > width:
+            token = _fit(draw, token, font, width)
+            w = draw.textlength(token, font=font)
+        draw.text((cx, y + row * line_h), token, fill="#FFFFFF" if item["n"] > 1 else "#C8C8C8", font=font)
+        cx += w
+        if cx + sep_w < x + width:
+            draw.text((cx, y + row * line_h), sep, fill="#666666", font=font)
+            cx += sep_w
+
+
 def contact_sheet(
     frames: list[dict[str, Any]],
     path: Path,
     density: list[int] | None = None,
     duration: float | None = None,
+    captions: list[list[dict[str, Any]]] | None = None,
 ) -> Path:
     """All frames on one image with timestamps, so an agent can take them in with a single look.
 
     Frames carrying a "danmaku" entry get a caption strip under the picture with the reactions
-    credited to them (never drawn over the picture). With `density`, a strip at the bottom shows
-    when viewers reacted, with each frame's position marked.
+    credited to them (never drawn over the picture); `captions` can hand in a longer list per frame
+    than the JSON carries. With `density`, a strip at the bottom shows when viewers reacted, with
+    each frame's position marked.
     """
     from PIL import Image, ImageDraw
 
@@ -241,7 +273,8 @@ def contact_sheet(
     tile_h = max(t.height for t in tiles)
     captioned = any("danmaku" in f for f in frames)
     cjk = _font(CAPTION_SIZE, cjk=True) if captioned or density else None
-    cap_h = (CAPTION_SIZE + 8) * (1 + (CAPTION_LINES if cjk else 0)) + 6 if captioned else 0
+    flow = _font(FLOW_SIZE, cjk=True) if cjk else None
+    cap_h = (CAPTION_SIZE + 10) + (CAPTION_LINES * (FLOW_SIZE + 5) if cjk else 0) + 8 if captioned else 0
     cell_h = tile_h + cap_h
     cols = min(SHEET_COLUMNS, len(tiles))
     rows = (len(tiles) + cols - 1) // cols
@@ -265,9 +298,8 @@ def contact_sheet(
         draw.text((x + 8, cy), head, fill="#FFD84D", font=small)
         if not cjk:
             continue
-        for j, item in enumerate(dm["top"][:CAPTION_LINES]):
-            text = _printable(item["text"]) + (f" ×{item['n']}" if item["n"] > 1 else "")
-            draw.text((x + 8, cy + (CAPTION_SIZE + 8) * (j + 1)), _fit(draw, text, small, SHEET_TILE_WIDTH - 16), fill="#E8E8E8", font=small)
+        items = captions[i] if captions else dm["top"]
+        _flow(draw, x + 8, cy + CAPTION_SIZE + 10, items, flow, SHEET_TILE_WIDTH - 16, CAPTION_LINES)
     if dens_h:
         top, width = rows * cell_h + 30, cols * SHEET_TILE_WIDTH
         caption = "弹幕密度（已按打字延迟前移）· 竖线 = 上面第几帧" if cjk else "danmaku density (shifted for typing delay); lines = frames"

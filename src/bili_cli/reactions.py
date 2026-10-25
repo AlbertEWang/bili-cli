@@ -18,7 +18,8 @@ from typing import Any, Iterable
 
 LAG = 2.0  # seconds between seeing a shot and sending a reaction to it
 FRAME_REACH = 8.0  # a frame collects reactions to moments at most this far from it
-TOP_PER_FRAME = 6
+TOP_PER_FRAME = 8  # in the JSON; the contact sheet draws up to CAPTION_POOL
+CAPTION_POOL = 40
 SKIP_MODES = {7, 8, 9}  # advanced, code and BAS danmaku are effects, not reactions
 
 _PUNCT = re.compile(r"[\W_]+", re.UNICODE)
@@ -60,7 +61,9 @@ def top_texts(texts: list[str], k: int = TOP_PER_FRAME) -> list[dict[str, Any]]:
     return [{"text": Counter(g).most_common(1)[0][0], "n": len(g)} for g in ranked[:k]]
 
 
-def assign(dms: list[tuple[float, str]], times: list[float], duration: float, lag: float = LAG) -> list[dict[str, Any]]:
+def assign(
+    dms: list[tuple[float, str]], times: list[float], duration: float, lag: float = LAG, k: int = TOP_PER_FRAME
+) -> list[dict[str, Any]]:
     """Reactions credited to each frame: moments closer to it than to its neighbours, within FRAME_REACH seconds."""
     if not times:
         return []
@@ -78,7 +81,7 @@ def assign(dms: list[tuple[float, str]], times: list[float], duration: float, la
             if lo <= m < hi or (m == hi == duration):
                 buckets[i].append(text)
                 break
-    return [{"count": len(b), "top": top_texts(b)} for b in buckets]
+    return [{"count": len(b), "top": top_texts(b, k)} for b in buckets]
 
 
 def density(dms: list[tuple[float, str]], duration: float, bins: int, lag: float = LAG) -> list[int]:
