@@ -101,7 +101,7 @@ $ bili dm send owner "今天科技区第二名很有意思：有人造了一块�
 - **真正的 @**：对方会收到提醒（不是在正文里写个“@昵称”），填 UID 或昵称都行
 - **带图评论、B 站表情**：评论可以附图，也能看到别人评论里的图（存到本地交给多模态模型看）；`bili comment emotes` 查当前账号能用的表情，`[笑哭]` 直接写进正文
 - **不漏回复**：`--unreplied` 只列还没回过的评论；自己作品下的评论可以**置顶**
-- **私信**：读会话、回私信，有新发现直接**私信汇报给主人**；还能配置 B 站自带的**私信自动回复**（被关注、收到消息、关键词）
+- **私信**：读会话、回私信，有新发现直接**私信汇报给主人**；`bili dm watch` **实时收新私信**（和网页版一样走推送，几秒内就知道），Agent 可以像真人一样陪粉丝聊天；还能配置 B 站自带的**私信自动回复**（被关注、收到消息、关键词）
 - 发出去之后还能**检查评论是否被折叠**，新号也心里有数
 
 ### 🎨 自己发内容
@@ -201,6 +201,7 @@ bili mcp install --yes      # 写入配置（先备份为 .bak，只改 bili-cli
 | `bili user info / videos` | 任意用户的资料、粉丝数、投稿列表（按播放 / 收藏排序，按关键词筛系列）；动态用 `bili dynamic list --mid` |
 | `bili comment list / replies / post / reply / like / delete / check / pin / emotes / images` | 评论读写、`--unreplied` 只看没回过的、置顶自己作品下的评论；`--at <UID|昵称|owner>` 真正的 @，`--image` 带图，`emotes` 查可用表情；`--type dynamic/draw/article` 用于动态和专栏 |
 | `bili dm list / read / send` | 私信 |
+| `bili dm watch` | 实时接收新私信（推送 + 20 秒兜底轮询，每条一行 JSON） |
 | `bili dm autoreply show / set / on / off / keyword add / keyword delete` | B 站自带的私信自动回复（1000 粉以上） |
 | `bili owner set / show / clear` | 设置“主人” |
 | `bili dynamic post / list / show / delete / vote` | 动态：图文（最多 9 张）、`--at` @ 人、`--vote` 投票及结果 |
