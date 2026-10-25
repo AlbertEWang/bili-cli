@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-10-26
+
 ### Fixed
 - `bili me stats` 在还没有数据的新账号上崩溃（`AttributeError: 'NoneType' object has no attribute 'get'`）：创作中心对这类账号返回 `null`，现在会返回各项为空的正常结果。感谢 @36dvertigo 在 #10 里给出的复现和修复建议。
 - 手动导入、缺少 `dedeuserid` 的凭证，在 `me favs`、`user following`、`dynamic` 投票等需要自己 UID 的命令里会报 `TypeError`；现在改为明确提示重新登录或补上 `dedeuserid`。
