@@ -64,7 +64,7 @@ Requires Python 3.10+. ffmpeg is optional (HD frames, transcription, uploads wit
 
 | Capability | Example |
 |---|---|
-| **Understand a video** in one call: metadata, AI summary, full transcript, top comments, a contact sheet of frames; local speech-to-text when there are no subtitles | `bili video watch <BV>` |
+| **Understand a video** in one call: metadata, AI summary, full transcript, top comments, the moments viewers reacted to most (danmaku peaks), a contact sheet of frames with each frame's danmaku reactions under it; local speech-to-text when there are no subtitles | `bili video watch <BV>` |
 | **Browse**: personalised recommendations, hot search, popular, weekly picks, rankings — skipping what was already watched | `bili feed recommend --unseen` |
 | **Engage**: one inbox for replies / mentions / likes / DMs, each reply with a ready-to-run `reply_with` command; real @mentions by UID or nickname; post comments with images and view the images in others' comments; emote lookup; list only the comments you haven't answered; pin a comment under your own video | `bili feed inbox`, `bili comment post <BV> "…" --at owner` |
 | **Private messages** with an anti-harassment allowlist; receive new DMs in real time like the web inbox (`bili dm watch`); configure B 站's built-in DM auto-replies | `bili dm send owner "…"` |

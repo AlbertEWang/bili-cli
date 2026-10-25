@@ -34,7 +34,8 @@ bili auth status          # 已登录 → 继续；not_logged_in → 走下面�
 | 看有什么新消息（每轮先做） | `bili feed inbox` |
 | 回复别人的评论 | 直接执行 inbox / `feed replies` 里每条附带的 `reply_with` 命令，把 `<回复内容>` 换成你的话 |
 | 刷视频找内容 | `bili feed recommend --unseen`、`bili hot popular --unseen`、`bili hot search`、`bili search video <关键词>` |
-| 看懂一个视频 | `bili video watch <BV>`（信息 + AI 总结 + 全文 + 热评 + 画面总览图，一次拿全） |
+| 看懂一个视频 | `bili video watch <BV>`（信息 + AI 总结 + 全文 + 热评 + 弹幕高能时刻 + 画面总览图，一次拿全；总览图每帧下方是观众对这个画面的弹幕反应） |
+| 看观众在哪儿反应最大 | `bili video danmaku <BV> --peaks 5`；要画面就 `bili video frames <BV> --peaks 5`（`-q hd` 精确帧） |
 | 发评论 / @ 人 / 带图 | `bili comment post <BV> "内容[笑哭]" --at owner --at 昵称 --image a.png` |
 | 找能用的表情 | `bili comment emotes -k 笑`（表情文字直接写进正文） |
 | 看评论里的图片 | `comment list` 的 `images` 给出地址，`bili comment images <url>` 存到本地再看 |
@@ -75,5 +76,6 @@ bili auth status          # 已登录 → 继续；not_logged_in → 走下面�
 - 所有命令的 ID 参数都接受 BV 号、av 号或完整链接。
 - 输出太长时：`video watch --max-chars 3000`、`video subtitle --text`、列表命令的 `--limit`。
 - `--raw` 返回 B 站原始数据；`--dry-run` 只预览写操作；`--wait` 遇到短暂的本地限流自动等待。这些参数写在命令任意位置都行。
-- `video frames --at` 支持小数秒，如 `--at 1:30.5`。
+- `video frames --at` 支持小数秒，如 `--at 1:30.5`；加 `--danmaku` 给每帧附弹幕反应。
+- 读弹幕要记得：弹幕是看完画面才打的字，发出后还要在屏幕上滚好几秒，所以截图里叠着的弹幕多半在说前几秒的镜头。用 `watch` / `frames --danmaku` 给出的对齐结果，不要按同屏弹幕理解当前画面。
 - 没有字幕的视频：`video watch` 会在配置了转写引擎时自动转写；未配置时提示用户运行 `bili asr setup local`。

@@ -93,7 +93,7 @@ $ bili dm send owner "今天科技区第二名很有意思：有人造了一块�
 看到喜欢的就**点赞、收藏到指定收藏夹、一键三连**。投币是真金白银，所以要显式指定个数，并且本地限制每天最多 5 个。
 
 ### 🧠 真的“看懂”视频
-`bili video watch` 一条命令拿全：**标题简介标签 + B 站 AI 总结 + 字幕全文 + 分段章节 + 热评 + 9 帧画面总览图**。
+`bili video watch` 一条命令拿全：**标题简介标签 + B 站 AI 总结 + 字幕全文 + 分段章节 + 热评 + 弹幕高能时刻 + 画面总览图**。总览图每帧下方附观众对这个画面的弹幕反应（按打字延迟对齐，不盖住画面），底部是弹幕密度条，弹幕最密的时刻另外取帧并标“高能”。
 没有字幕？一键部署本地语音转写 **Qwen3-ASR**——有 NVIDIA 显卡自动用 GPU，**31 分钟的视频 2 分钟转完**；没显卡也能用 CPU 版，或者接云端服务。
 
 ### 💬 像 UP 主一样社交
@@ -185,11 +185,11 @@ bili mcp install --yes      # 写入配置（先备份为 .bak，只改 bili-cli
 | 命令 | 说明 |
 | --- | --- |
 | `bili auth login / status / logout` | 扫码登录、登录状态（自动续期）、登出 |
-| `bili video info / stats / subtitle / danmaku / summary / chapters` | 视频信息、数据、字幕、弹幕、AI 总结、分段章节 |
-| `bili video watch` | 一次拿全：信息 + 标签 + AI 总结 + 全文 + 章节 + 热评 + 画面总览图；`--record` 写入历史记录 |
+| `bili video info / stats / subtitle / danmaku / summary / chapters` | 视频信息、数据、字幕、弹幕（`--peaks N` 只看观众反应最强烈的时刻）、AI 总结、分段章节 |
+| `bili video watch` | 一次拿全：信息 + 标签 + AI 总结 + 全文 + 章节 + 热评 + 弹幕高能时刻 + 带弹幕反应的画面总览图；`--record` 写入历史记录 |
 | `bili video like / coin / fav / triple / relation` | 点赞、投币（必须指定个数，每天最多 5 个）、收藏、一键三连、查看我和视频的关系 |
 | `bili me favs` | 我的收藏夹 |
-| `bili video frames` | 抽帧并拼总览图：默认用进度条缩略图（快、免 ffmpeg），`-q hd` 精确帧 |
+| `bili video frames` | 抽帧并拼总览图：默认用进度条缩略图（快、免 ffmpeg），`-q hd` 精确帧；`--danmaku` 每帧附弹幕反应，`--peaks N` 在弹幕最密集的 N 个时刻取帧 |
 | `bili video transcribe` | 语音转文字，格式同字幕，结果缓存 |
 | `bili feed inbox` | 一次看完所有新消息（读取后 B 站标为已读） |
 | `bili feed replies / mentions / likes / system / notifications` | 回复、@、赞、系统通知、未读数 |

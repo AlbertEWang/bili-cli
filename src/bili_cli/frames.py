@@ -83,6 +83,10 @@ async def grab_preview(snapshot: dict[str, Any], times: list[float], out_dir: Pa
     w, h = snapshot.get("img_x_size"), snapshot.get("img_y_size")
     if not index or not images or not w or not h:
         raise BiliError("not_found", "该视频没有预览缩略图。", hint="改用 --quality hd（需要 ffmpeg）。")
+    # The index starts with a placeholder 0 that has no thumbnail ([0, 0, 6, 12, ...]): thumbnail k is index[k + 1].
+    # Reading it as index[k] labelled every frame one interval early (checked against exact ffmpeg frames).
+    if len(index) > 1 and index[0] == 0 and index[1] == 0:
+        index = index[1:]
     per_sheet = cols * rows
     count = min(len(index), len(images) * per_sheet)
     sheets: dict[int, Image.Image] = {}
@@ -90,6 +94,8 @@ async def grab_preview(snapshot: dict[str, Any], times: list[float], out_dir: Pa
     async with web_client() as client:
         for t in times:
             k = max(0, min(bisect.bisect_right(index, t) - 1, count - 1))
+            if k + 1 < count and abs(index[k + 1] - t) < abs(t - index[k]):
+                k += 1  # the nearest thumbnail, not just the last one before t
             sheet_no, pos = divmod(k, per_sheet)
             if sheet_no not in sheets:
                 url = images[sheet_no]
@@ -101,6 +107,16 @@ async def grab_preview(snapshot: dict[str, Any], times: list[float], out_dir: Pa
             sheets[sheet_no].crop((x, y, x + w, y + h)).save(path, quality=90)
             results.append({"time": t, "actual_time": index[k], "path": str(path)})
     return results
+
+
+def dedupe(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Preview frames requested a few seconds apart can snap to the same thumbnail; keep one of each."""
+    seen, out = set(), []
+    for it in items:
+        if it["actual_time"] not in seen:
+            seen.add(it["actual_time"])
+            out.append(it)
+    return out
 
 
 def pick_stream(playurl: dict[str, Any]) -> dict[str, Any]:
@@ -125,33 +141,97 @@ async def grab_hd(playurl: dict[str, Any], times: list[float], out_dir: Path) ->
         path = out_dir / frame_name(t)
         err = b""
         async with sem:
-            for url in filter(None, urls):
-                # A thread rather than asyncio subprocesses: the selector loop used on Windows cannot spawn them.
-                # -nostdin + DEVNULL: otherwise concurrent ffmpegs wait on the console for key presses.
-                try:
-                    proc = await asyncio.to_thread(
-                        subprocess.run,
-                        ["ffmpeg", "-nostdin", "-y", "-loglevel", "error", "-headers", headers,
-                         "-ss", f"{t:.2f}", "-i", url, "-frames:v", "1", "-q:v", "3", str(path)],
-                        stdin=subprocess.DEVNULL,
-                        capture_output=True,
-                        timeout=HD_FRAME_TIMEOUT,
-                    )
-                except subprocess.TimeoutExpired:
-                    err = f"ffmpeg 超过 {HD_FRAME_TIMEOUT} 秒未完成".encode()
-                    continue
-                err = proc.stderr
-                if proc.returncode == 0 and path.exists() and path.stat().st_size > 0:
-                    return {"time": t, "actual_time": t, "path": str(path)}
+            # The video stream often ends a fraction of a second before the stated duration, so a time near
+            # the end yields no frame; one step back finds the last picture instead of failing the whole call.
+            for seek in (t, max(0.0, t - 1.0)):
+                for url in filter(None, urls):
+                    # A thread rather than asyncio subprocesses: the selector loop used on Windows cannot spawn them.
+                    # -nostdin + DEVNULL: otherwise concurrent ffmpegs wait on the console for key presses.
+                    try:
+                        proc = await asyncio.to_thread(
+                            subprocess.run,
+                            ["ffmpeg", "-nostdin", "-y", "-loglevel", "error", "-headers", headers,
+                             "-ss", f"{seek:.2f}", "-i", url, "-frames:v", "1", "-q:v", "3", str(path)],
+                            stdin=subprocess.DEVNULL,
+                            capture_output=True,
+                            timeout=HD_FRAME_TIMEOUT,
+                        )
+                    except subprocess.TimeoutExpired:
+                        err = f"ffmpeg 超过 {HD_FRAME_TIMEOUT} 秒未完成".encode()
+                        continue
+                    err = proc.stderr
+                    if proc.returncode == 0 and path.exists() and path.stat().st_size > 0:
+                        return {"time": t, "actual_time": seek, "path": str(path)}
             raise BiliError("network_error", f"截取 {fmt_time(t)} 的画面失败：{err.decode(errors='ignore')[-200:]}")
 
     results = await asyncio.gather(*(one(t) for t in times))
     return list(results)
 
 
-def contact_sheet(frames: list[dict[str, Any]], path: Path) -> Path:
-    """All frames on one image with timestamps, so an agent can take them in with a single look."""
-    from PIL import Image, ImageDraw, ImageFont
+CJK_FONTS = (
+    "C:/Windows/Fonts/msyh.ttc",
+    "C:/Windows/Fonts/simhei.ttf",
+    "C:/Windows/Fonts/simsun.ttc",
+    "/System/Library/Fonts/PingFang.ttc",
+    "/System/Library/Fonts/STHeiti Medium.ttc",
+    "/System/Library/Fonts/Hiragino Sans GB.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+    "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+)
+CAPTION_LINES = 3
+CAPTION_SIZE = 18
+DENSITY_HEIGHT = 64
+
+
+def _font(size: int, cjk: bool = False):
+    """A CJK-capable font when asked for one (danmaku text); None if this machine has none."""
+    import os
+
+    from PIL import ImageFont
+
+    if cjk:
+        for p in filter(None, (os.environ.get("BILI_CLI_FONT"), *CJK_FONTS)):
+            if Path(p).exists():
+                try:
+                    return ImageFont.truetype(p, size)
+                except OSError:
+                    continue
+        return None
+    try:
+        return ImageFont.load_default(size=size)
+    except TypeError:  # Pillow < 10.1
+        return ImageFont.load_default()
+
+
+def _printable(text: str) -> str:
+    """Drop emoji and other astral-plane characters that CJK fonts draw as boxes."""
+    return "".join(c for c in text if ord(c) <= 0xFFFF and not 0x2600 <= ord(c) <= 0x27BF).strip()
+
+
+def _fit(draw, text: str, font, width: int) -> str:
+    if draw.textlength(text, font=font) <= width:
+        return text
+    while text and draw.textlength(text + "…", font=font) > width:
+        text = text[:-1]
+    return text + "…"
+
+
+def contact_sheet(
+    frames: list[dict[str, Any]],
+    path: Path,
+    density: list[int] | None = None,
+    duration: float | None = None,
+) -> Path:
+    """All frames on one image with timestamps, so an agent can take them in with a single look.
+
+    Frames carrying a "danmaku" entry get a caption strip under the picture with the reactions
+    credited to them (never drawn over the picture). With `density`, a strip at the bottom shows
+    when viewers reacted, with each frame's position marked.
+    """
+    from PIL import Image, ImageDraw
 
     tiles = []
     for f in frames:
@@ -159,20 +239,47 @@ def contact_sheet(frames: list[dict[str, Any]], path: Path) -> Path:
         ratio = SHEET_TILE_WIDTH / img.width
         tiles.append(img.resize((SHEET_TILE_WIDTH, int(img.height * ratio))))
     tile_h = max(t.height for t in tiles)
+    captioned = any("danmaku" in f for f in frames)
+    cjk = _font(CAPTION_SIZE, cjk=True) if captioned or density else None
+    cap_h = (CAPTION_SIZE + 8) * (1 + (CAPTION_LINES if cjk else 0)) + 6 if captioned else 0
+    cell_h = tile_h + cap_h
     cols = min(SHEET_COLUMNS, len(tiles))
     rows = (len(tiles) + cols - 1) // cols
-    sheet = Image.new("RGB", (cols * SHEET_TILE_WIDTH, rows * tile_h), "black")
+    dens_h = DENSITY_HEIGHT + 34 if density and duration else 0
+    sheet = Image.new("RGB", (cols * SHEET_TILE_WIDTH, rows * cell_h + dens_h), "black")
     draw = ImageDraw.Draw(sheet)
-    try:
-        font = ImageFont.load_default(size=22)
-    except TypeError:  # Pillow < 10.1
-        font = ImageFont.load_default()
+    font = (_font(22, cjk=True) if cjk else None) or _font(22)
+    small = cjk or _font(CAPTION_SIZE)
     for i, (tile, f) in enumerate(zip(tiles, frames)):
-        x, y = (i % cols) * SHEET_TILE_WIDTH, (i // cols) * tile_h
+        x, y = (i % cols) * SHEET_TILE_WIDTH, (i // cols) * cell_h
         sheet.paste(tile, (x, y))
-        label = f"#{i + 1} {fmt_time(f['actual_time'])}"
+        label = f"#{i + 1} {fmt_time(f['actual_time'])}" + (("  高能" if cjk else "  PEAK") if f.get("peak") else "")
         box = draw.textbbox((x + 6, y + 6), label, font=font)
-        draw.rectangle((box[0] - 4, box[1] - 3, box[2] + 4, box[3] + 3), fill="black")
+        draw.rectangle((box[0] - 4, box[1] - 3, box[2] + 4, box[3] + 3), fill="#B3261E" if f.get("peak") else "black")
         draw.text((x + 6, y + 6), label, fill="white", font=font)
+        if not captioned:
+            continue
+        cy = y + tile_h + 4
+        dm = f.get("danmaku") or {"count": 0, "top": []}
+        head = f"弹幕 {dm['count']} 条" if cjk else f"danmaku: {dm['count']}"
+        draw.text((x + 8, cy), head, fill="#FFD84D", font=small)
+        if not cjk:
+            continue
+        for j, item in enumerate(dm["top"][:CAPTION_LINES]):
+            text = _printable(item["text"]) + (f" ×{item['n']}" if item["n"] > 1 else "")
+            draw.text((x + 8, cy + (CAPTION_SIZE + 8) * (j + 1)), _fit(draw, text, small, SHEET_TILE_WIDTH - 16), fill="#E8E8E8", font=small)
+    if dens_h:
+        top, width = rows * cell_h + 30, cols * SHEET_TILE_WIDTH
+        caption = "弹幕密度（已按打字延迟前移）· 竖线 = 上面第几帧" if cjk else "danmaku density (shifted for typing delay); lines = frames"
+        draw.text((6, rows * cell_h + 4), caption, fill="#AAAAAA", font=small)
+        peak = max(density) or 1
+        bar_w = width / len(density)
+        for k, n in enumerate(density):
+            h = int(DENSITY_HEIGHT * n / peak)
+            draw.rectangle((int(k * bar_w), top + DENSITY_HEIGHT - h, max(int(k * bar_w), int((k + 1) * bar_w) - 1), top + DENSITY_HEIGHT), fill="#4FA3E0")
+        for i, f in enumerate(frames):
+            fx = min(int(width * min(f["actual_time"] / duration, 1.0)), width - 2)
+            draw.line((fx, top, fx, top + DENSITY_HEIGHT), fill="#B3261E" if f.get("peak") else "#FFFFFF", width=2)
+            draw.text((fx + 3, top + 1), str(i + 1), fill="white", font=_font(14))
     sheet.save(path, quality=88)
     return path

@@ -134,11 +134,22 @@ def danmaku(
     video_id: str = VIDEO_ARG,
     page: int = PAGE_OPT,
     limit: int = typer.Option(500, "--limit", min=1, help="最多返回的弹幕条数（按出现时间排序）。"),
+    peaks: Optional[int] = typer.Option(
+        None, "--peaks", min=1, max=20, help="不列弹幕，只返回观众反应最强烈的 N 个时刻（已按打字延迟前移）和每个时刻的代表弹幕。"
+    ),
 ) -> None:
     """视频弹幕，按出现时间排序。"""
 
     async def body():
-        dms = await _video(video_id).get_danmakus(page_index=page - 1)
+        from .. import reactions as rx
+
+        v = _video(video_id)
+        dms = await v.get_danmakus(page_index=page - 1)
+        if peaks:
+            info = await v.get_info()
+            duration = float(_pick_page(info, page).get("duration") or 0)
+            pairs = rx.load(dms)
+            return {"total": len(pairs), "note": rx.NOTE, "peaks": _peak_cards(rx.peaks(pairs, duration, n=peaks))}
         dms.sort(key=lambda d: d.dm_time)
         return {
             "total": len(dms),
@@ -149,6 +160,45 @@ def danmaku(
         }
 
     run(body)
+
+
+def _peak_cards(pk: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    from ..frames import fmt_time
+
+    return [{"time": p["time"], "time_str": fmt_time(p["time"]), "count": p["count"], "top": [t["text"] for t in p["top"]]} for p in pk]
+
+
+async def _load_danmaku(v: video.Video, page: int) -> list[tuple[float, str]]:
+    from .. import reactions as rx
+
+    return rx.load(await v.get_danmakus(page_index=page - 1))
+
+
+def _annotate(items: list[dict[str, Any]], dms: list[tuple[float, str]], duration: float, peak_times: list[float] = ()) -> None:
+    """Credit reactions to each frame and flag the frames that show a reaction peak."""
+    from .. import reactions as rx
+
+    for it, r in zip(items, rx.assign(dms, [it["actual_time"] for it in items], duration)):
+        it["danmaku"] = r
+    for p in peak_times:  # a peak frame may have snapped to the nearest thumbnail, a few seconds away
+        nearest = min(items, key=lambda it: abs(it["actual_time"] - p), default=None)
+        if nearest is not None and abs(nearest["actual_time"] - p) <= max(3.0, duration / 60):
+            nearest["peak"] = True
+
+
+def _density_bins(duration: float) -> int:
+    return max(1, min(int(duration) + 1, 360))
+
+
+async def _snapshot(v: video.Video, cid: int) -> dict[str, Any]:
+    """Seek-bar thumbnails. The API now and then answers with an empty image list, more so right after other calls."""
+    snap: dict[str, Any] = {}
+    for wait in (0, 1.0, 2.5):
+        await asyncio.sleep(wait)
+        snap = await v.get_video_snapshot(cid=cid, json_index=True, pvideo=False)
+        if snap.get("image"):
+            break
+    return snap
 
 
 @app.command()
@@ -164,15 +214,22 @@ def frames(
     ),
     sheet: bool = typer.Option(True, "--sheet/--no-sheet", help="额外拼一张带时间标注的总览图，一次看完所有帧。"),
     out: Optional[Path] = typer.Option(None, "--out", help="图片输出目录，默认在配置目录的 frames/ 下。"),
+    with_danmaku: bool = typer.Option(
+        False, "--danmaku", help="给每帧附上观众对这个画面的弹幕反应（按打字延迟对齐，写在图下方，不盖住画面），总览图底部加弹幕密度条。"
+    ),
+    peaks: Optional[int] = typer.Option(
+        None, "--peaks", min=1, max=30, help="在弹幕反应最强烈的 N 个时刻取帧（自动带上 --danmaku）。"
+    ),
 ) -> None:
     """抽取视频画面为图片，供能看图的模型理解画面内容。返回每帧的时间和图片路径。"""
 
     async def body():
         from .. import frames as fr
+        from .. import reactions as rx
 
-        modes = sum(bool(x) for x in (count, every, at, by_chapter))
+        modes = sum(bool(x) for x in (count, every, at, by_chapter, peaks))
         if modes > 1:
-            raise BiliError("invalid_argument", "--count / --every / --at / --chapters 只能选一种。")
+            raise BiliError("invalid_argument", "--count / --every / --at / --chapters / --peaks 只能选一种。")
         if quality not in ("preview", "hd"):
             raise BiliError("invalid_argument", "--quality 只能是 preview 或 hd。")
         v = _video(video_id)
@@ -182,13 +239,20 @@ def frames(
         points = (await v.get_player_info(cid=pg["cid"])).get("view_points") or [] if by_chapter else []
         from ..runtime import parse_seconds
 
-        times = fr.plan_times(
-            duration,
-            count=count,
-            every=every,
-            at=[parse_seconds(a) for a in at] if at else None,
-            chapter_starts=[p.get("from") or 0 for p in points] if by_chapter else None,
-        )
+        dms = await _load_danmaku(v, page) if (with_danmaku or peaks) else []
+        peak_list = rx.peaks(dms, duration, n=peaks or 5) if dms else []
+        if peaks:
+            if not peak_list:
+                raise BiliError("not_found", "弹幕太少，找不到观众反应集中的时刻。", hint="改用 --count 均匀取帧，加 --danmaku 看每帧的弹幕。")
+            times = sorted(p["time"] for p in peak_list)
+        else:
+            times = fr.plan_times(
+                duration,
+                count=count,
+                every=every,
+                at=[parse_seconds(a) for a in at] if at else None,
+                chapter_starts=[p.get("from") or 0 for p in points] if by_chapter else None,
+            )
         limit = fr.MAX_HD_FRAMES if quality == "hd" else fr.MAX_PREVIEW_FRAMES
         if len(times) > limit:
             raise BiliError("invalid_argument", f"{quality} 模式最多 {limit} 帧，当前会取 {len(times)} 帧。", hint="增大 --every 或减少 --count。")
@@ -196,11 +260,7 @@ def frames(
         out_dir = (out or config.home() / "frames" / f"{info.get('bvid')}_p{page}_{quality}").resolve()
         out_dir.mkdir(parents=True, exist_ok=True)
         if quality == "preview":
-            snap = await v.get_video_snapshot(cid=pg["cid"], json_index=True, pvideo=False)
-            if not snap.get("image"):  # occasionally comes back empty; one retry is enough in practice
-                await asyncio.sleep(1)
-                snap = await v.get_video_snapshot(cid=pg["cid"], json_index=True, pvideo=False)
-            items = await fr.grab_preview(snap, times, out_dir)
+            items = fr.dedupe(await fr.grab_preview(await _snapshot(v, pg["cid"]), times, out_dir))
         else:
             items = await fr.grab_hd(await v.get_download_url(cid=pg["cid"]), times, out_dir)
 
@@ -209,6 +269,8 @@ def frames(
             it["time_str"] = fr.fmt_time(it["actual_time"])
             if titles:
                 it["chapter"] = next((name for start, name in reversed(titles) if it["actual_time"] >= start), None)
+        if with_danmaku or peaks:
+            _annotate(items, dms, duration, [p["time"] for p in peak_list] if peaks else [])
         result: dict[str, Any] = {
             "bvid": info.get("bvid"),
             "page": page,
@@ -217,8 +279,11 @@ def frames(
             "dir": str(out_dir),
             "frames": items,
         }
+        if with_danmaku or peaks:
+            result["danmaku"] = {"total": len(dms), "note": rx.NOTE, "peaks": _peak_cards(peak_list)}
         if sheet and items:
-            result["sheet"] = str(fr.contact_sheet(items, out_dir / "sheet.jpg"))
+            density = rx.density(dms, duration, _density_bins(duration)) if dms else None
+            result["sheet"] = str(fr.contact_sheet(items, out_dir / "sheet.jpg", density=density, duration=duration))
         return result
 
     run(body)
@@ -388,14 +453,19 @@ def watch(
     ),
     max_chars: int = typer.Option(6000, "--max-chars", min=0, help="正文最多返回多少字，超出截断（0 不限）。"),
     record: bool = typer.Option(False, "--record", help="把这次观看写进 B 站历史记录（让推荐更懂这个账号）。只上报一次，不刷播放量。"),
+    with_danmaku: bool = typer.Option(
+        True, "--danmaku/--no-danmaku", help="读弹幕：返回观众反应最强烈的时刻，总览图每帧下方附对应的弹幕反应。"
+    ),
+    peaks_n: int = typer.Option(3, "--peaks", min=0, max=10, help="另外在弹幕最密集的 N 个时刻各取一帧（标“高能”），0 表示不加。"),
 ) -> None:
-    """“看”一个视频：一次返回信息、AI 总结、全文（字幕或转写）、章节、热评和画面总览图，并记入已看列表。"""
+    """“看”一个视频：一次返回信息、AI 总结、全文（字幕或转写）、章节、热评、弹幕高能时刻和画面总览图，并记入已看列表。"""
 
     async def body():
         from .. import cards
         from ..asr import engines as asr_engines
         from ..asr import pipeline as asr_pipeline
         from .. import frames as fr
+        from .. import reactions as rx
 
         if transcript not in ("auto", "subtitle", "none"):
             raise BiliError("invalid_argument", "--transcript 只能是 auto / subtitle / none。")
@@ -445,14 +515,31 @@ def watch(
                 for r in (data.get("replies") or [])[:comments_n]
             ]
 
+        duration = float(pg.get("duration") or 0)
+        dms: list[tuple[float, str]] = []
+        peak_list: list[dict[str, Any]] = []
+        if with_danmaku:
+            try:
+                dms = await _load_danmaku(v, page)
+            except Exception:  # noqa: BLE001  danmaku are a bonus; never fail the whole watch over them
+                dms = []
+            peak_list = rx.peaks(dms, duration, n=max(5, peaks_n)) if dms else []
+            result["danmaku"] = {"total": len(dms), "peaks": _peak_cards(peak_list[:5]), "note": rx.NOTE}
+
         if frames_n:
-            times = fr.plan_times(float(pg.get("duration") or 0), count=frames_n)
-            snap = await v.get_video_snapshot(cid=cid, json_index=True, pvideo=False)
+            times = fr.plan_times(duration, count=frames_n)
+            extra = [p["time"] for p in sorted(peak_list, key=lambda p: -p["count"])[:peaks_n]]
+            times = sorted(set(times) | {t for t in extra if all(abs(t - u) > 2 for u in times)})
+            snap = await _snapshot(v, cid)
             out_dir = config.home() / "frames" / f"{info.get('bvid')}_p{page}_preview"
             out_dir.mkdir(parents=True, exist_ok=True)
             try:
-                items = await fr.grab_preview(snap, times, out_dir)
-                result["frames_sheet"] = str(fr.contact_sheet(items, out_dir / "sheet.jpg"))
+                items = fr.dedupe(await fr.grab_preview(snap, times, out_dir))
+                density = None
+                if dms:
+                    _annotate(items, dms, duration, extra)
+                    density = rx.density(dms, duration, _density_bins(duration))
+                result["frames_sheet"] = str(fr.contact_sheet(items, out_dir / "sheet.jpg", density=density, duration=duration))
             except BiliError:
                 result["frames_sheet"] = None
 

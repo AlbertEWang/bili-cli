@@ -79,7 +79,7 @@ def build_server():
     def inbox(limit: int = 5) -> dict:
         return call(["feed", "inbox", "--limit", str(limit)])
 
-    @server.tool(annotations=read, description="看懂一个视频（BV 号 / av 号 / 链接）：信息、AI 总结、字幕或转写全文、章节、热评、画面总览图路径。")
+    @server.tool(annotations=read, description="看懂一个视频（BV 号 / av 号 / 链接）：信息、AI 总结、字幕或转写全文、章节、热评、弹幕高能时刻、画面总览图路径（每帧下方附观众对这个画面的弹幕反应）。")
     def watch_video(video: str, frames: int = 9, comments: int = 5, max_chars: int = 6000, record: bool = False) -> dict:
         args = ["video", "watch", video, "--frames", str(frames), "--comments", str(comments), "--max-chars", str(max_chars)]
         _flag(args, "--record", record)
