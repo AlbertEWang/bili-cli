@@ -18,6 +18,8 @@ import httpx
 import qrcode
 import typer
 from bilibili_api import Credential, user
+from bilibili_api.exceptions import CookiesRefreshException
+from bilibili_api.utils.network import Api
 
 from .. import config, output
 from ..errors import BiliError
@@ -37,6 +39,18 @@ QR_POLL_URL = "https://passport.bilibili.com/x/passport-login/web/qrcode/poll"
 QR_NOT_SCANNED = 86101
 QR_SCANNED = 86090
 QR_EXPIRED = 86038
+
+# Cookie refresh: bilibili-api stamps correspondPath with this machine's clock, and Bilibili
+# answers 404 when the stamp is in its future, so a clock a few seconds fast broke every refresh.
+# cookie/info returns Bilibili's own time, which is what the stamp should use.
+COOKIE_INFO_URL = "https://passport.bilibili.com/x/passport-login/web/cookie/info"
+CORRESPOND_KEY = """\
+-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDLgd2OAkcGVtoE3ThUREbio0Eg
+Uc/prcajMKXvkCKFCWhJYJcLkcM2DKKcSeFpD/j6Boy538YXnR6VhcuUJOhH2x71
+nzPjfdTcqMz7djHum0qSZA0AyCBDABUqCrfNgCiJ00Ra7GmRj+YCK1NJEuewlb40
+JNrRuoEUXpabUzGB8QIDAQAB
+-----END PUBLIC KEY-----"""
 
 
 async def _generate_qr() -> tuple[str, str]:
@@ -83,6 +97,31 @@ async def _poll_qr(key: str) -> tuple[int, Credential | None]:
 async def _self_info(cred) -> dict:
     me = await user.get_self_info(cred)
     return {"mid": me.get("mid"), "name": me.get("name"), "level": me.get("level")}
+
+
+def _correspond_path(timestamp_ms: int) -> str:
+    from Cryptodome.Cipher import PKCS1_OAEP
+    from Cryptodome.Hash import SHA256
+    from Cryptodome.PublicKey import RSA
+
+    return PKCS1_OAEP.new(RSA.importKey(CORRESPOND_KEY), SHA256).encrypt(f"refresh_{timestamp_ms}".encode()).hex()
+
+
+async def _refresh_cookies(cred: Credential) -> bool:
+    """Refresh the login cookies when Bilibili asks for it; returns whether they were refreshed."""
+    from bilibili_api.utils import network
+
+    info = await Api(url=COOKIE_INFO_URL, method="GET", credential=cred).result or {}
+    if not info.get("refresh"):
+        return False
+    offset = info["timestamp"] / 1000 - time.time() if info.get("timestamp") else 0.0
+    original = network._getCorrespondPath
+    network._getCorrespondPath = lambda: _correspond_path(round((time.time() + offset) * 1000))
+    try:
+        await cred.refresh()
+    finally:
+        network._getCorrespondPath = original
+    return True
 
 
 async def _wait_pending(pending: dict, wait: int) -> dict:
@@ -184,12 +223,20 @@ def status(
             raise BiliError("not_logged_in", "尚未登录。")
         if not await cred.check_valid():
             raise BiliError("auth_expired", "登录凭证已失效。")
-        refreshed = False
-        if cred.has_ac_time_value() and await cred.check_refresh():
-            await cred.refresh()
+        refreshed, refresh_error = False, None
+        if cred.has_ac_time_value():
+            try:
+                refreshed = await _refresh_cookies(cred)
+            except CookiesRefreshException as exc:
+                # the login was just checked and still works; only renewing it failed
+                refresh_error = str(exc)
+        if refreshed:
             config.save_credential(cred)
-            refreshed = True
-        return {"logged_in": True, "user": await _self_info(cred), "refreshed": refreshed}
+        result = {"logged_in": True, "user": await _self_info(cred), "refreshed": refreshed}
+        if refresh_error:
+            result["refresh_error"] = refresh_error
+            result["hint"] = "登录目前仍有效，只是这次没能续期。稍后再运行 `bili auth status`；一直失败的话，等登录过期后用 `bili auth login` 重新扫码。"
+        return result
 
     run(body, deadline=_wait_deadline(wait))
 
