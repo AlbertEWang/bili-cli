@@ -240,7 +240,8 @@ def trend(
         if output.settings.raw:
             return {"type": type, "data": data}
         series = [{"date": day(r.get("date_key")), "delta": r.get("total_inc")} for r in rows]
-        return {"type": type, "days": len(series), "total": sum(r["delta"] or 0 for r in series), "series": series, "note": LAG_NOTE}
+        note = LAG_NOTE + (f" {CHARGE_NOTE}，不要当金额用。" if type == "charge" else "")
+        return {"type": type, "days": len(series), "total": sum(r["delta"] or 0 for r in series), "series": series, "note": note}
 
     run(body)
 
@@ -445,7 +446,7 @@ def video(target: str = typer.Argument(..., help="自己的稿件：BV 号、av 
             "看实时总数用 `bili video info`。完播率和 `bili upload stats` 是同一个数。"
             if data_date
             else LAG_NOTE
-        )
+        ) + f" `stat` 里的 {CHARGE_NOTE}。"
         return out
 
     run(body)

@@ -165,6 +165,13 @@ def test_trend_command_uses_calendar_dates(monkeypatch):
     out = _invoke(monkeypatch, {"/x/web/data/pandect": rows}, ["data", "trend", "--type", "like", "--days", "1"])
     assert out["type"] == "like" and out["days"] == 1
     assert out["series"] == [{"date": "2026-10-19", "delta": 20}]
+    assert "单位未确认" not in out["note"]
+
+
+def test_charge_trend_says_the_unit_is_unconfirmed(monkeypatch):
+    rows = [{"date_key": 1792339200, "total_inc": 30000}]
+    out = _invoke(monkeypatch, {"/x/web/data/pandect": rows}, ["data", "trend", "--type", "charge"])
+    assert out["total"] == 30000 and "单位未确认" in out["note"]
 
 
 def test_videos_merges_diagnosis_and_sorts(monkeypatch):
@@ -206,6 +213,7 @@ def test_video_command(monkeypatch):
     assert out["completion_percent"] == 39.97 and out["avg_watch_seconds"] == 82
     assert out["regions"] == [{"name": "广东", "count": 36}]
     assert out["diagnose"]["interaction_percent"] == 8.52
+    assert "单位未确认" in out["note"]
 
 
 def test_fans_command(monkeypatch):
