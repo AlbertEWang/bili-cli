@@ -27,6 +27,9 @@ jobs:
           cache: pip
       - name: Install ffmpeg
         if: runner.os == 'Linux'
+        # The apt mirror sometimes hangs for hours; ffmpeg is optional and its tests skip without it.
+        timeout-minutes: 5
+        continue-on-error: true
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Install
         run: pip install -e ".[dev]"
