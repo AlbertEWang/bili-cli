@@ -4,8 +4,10 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-26
+
 ### Added
-- `bili data`：把创作中心「数据中心」里 `me stats` / `upload stats` 之外的面板补齐，全部只读。
+- `bili data`：把创作中心「数据中心」里 `me stats` / `upload stats` 之外的面板补齐，全部只读。由 @AlbertEWang 在 #11 贡献。
   - `bili data overview`：累计播放 / 互动、昨日增量、周期对比（复用 `me.summarize_stats()`，和 `bili me stats` 同一份计算）、粉丝 / 路人播放占比、播放端分布、和同类 UP 主比、昨日涨最多的稿件。
   - `bili data trend --type play --days 30`：最近 30 天的每日增量（播放、点赞、收藏、投币、评论、弹幕、分享、充电）。
   - `bili data audience`：粉丝 / 路人的性别、年龄、省份分布（每周二更新），以及两边各自的兴趣覆盖率（可多选，合计超过 100%）。
@@ -15,6 +17,9 @@
   - `bili data diagnose`：最近 N 个稿件的诊断指标横向对比。
 - 这些接口 `bilibili-api` 没有封装，直接按网页请求实现；比率字段（1/10000）换算成百分比，`not_ready_field` 里没算完的指标会被跳过；HTTP 412 按项目约定报 `risk_control`。
 - `charge` 是 B 站原始数值，单位未确认，不要当金额用。
+
+### Fixed
+- `bili auth status` 给 cookie 续期时，只要电脑时钟比 B 站快几秒就会失败，报 `internal_error`（`CookiesRefreshException: correspondPath 过期或错误`），登录一直续不上期。续期的时间戳现在用 B 站返回的服务器时间。续期仍然失败时，登录本身还有效，所以不再报错，而是返回 `refreshed: false`、`refresh_error` 和处理建议。
 
 ## [1.1.2] - 2026-10-26
 
