@@ -1,6 +1,6 @@
 ---
 name: bili-cli
-description: Operate a Bilibili (B站/哔哩哔哩) account through the `bili` CLI — watch and understand videos (subtitles, AI summary, frames, speech-to-text), browse recommendations/trending/hot search, read the notification inbox, reply to comments with real @mentions, send private messages, post dynamics, upload videos with the AI-content declaration. Use when the user mentions Bilibili, B站, 哔哩哔哩, BV/av IDs, b23.tv or bilibili.com links, UP主, 弹幕, 评论区, 私信, 动态, 投稿, or asks you to run, monitor or post on their Bilibili account.
+description: Operate a Bilibili (B站/哔哩哔哩) account through the `bili` CLI — watch and understand videos (subtitles, AI summary, frames, speech-to-text), browse recommendations/trending/hot search, read the notification inbox, reply to comments with real @mentions, send private messages, post dynamics, upload videos with the AI-content declaration, and read the creator data center (account overview, 30-day trends, audience profile, fan growth, per-video diagnosis). Use when the user mentions Bilibili, B站, 哔哩哔哩, BV/av IDs, b23.tv or bilibili.com links, UP主, 弹幕, 评论区, 私信, 动态, 投稿, 数据中心, 完播率, 粉丝画像, or asks you to run, monitor, analyse or post on their Bilibili account.
 license: MIT
 compatibility: Requires the `bili` command (bili-cli, Python 3.10+) and network access. Account actions need a one-time QR login by the human (`bili auth login`).
 metadata:
@@ -51,6 +51,7 @@ bili auth status          # 已登录 → 继续；not_logged_in → 走下面�
 | 换源：用新视频文件替换已投稿件（单 P） | `bili upload edit <BV> --video new.mp4`（重新审核，联合投稿成员和活动保留） |
 | 简介里 @ 人（投稿或改稿） | `--desc "角色设计 @冬冰 " --desc-at 冬冰` |
 | 看自己的数据 | `bili me stats`（账号：播放、涨粉、播放端、超过多少同类 UP）、`bili upload stats <BV>`（单稿：互动率、完播率） |
+| 数据中心 | `bili data overview / trend / audience / fans / videos / video / diagnose`（累计与昨日增量、30 天趋势、观众画像、粉丝来源、稿件表、单稿诊断），用法和复盘套路见 [references/workflows.md](references/workflows.md) |
 | 研究别的 UP 主 | `bili user info <UID|昵称>`、`bili user videos <UID> --order views`（找爆款）/ `-k 系列名` |
 | 看关注的人发了什么 | `bili feed timeline`（关注动态）、`--type video` 只看新投稿、`--up <UID|昵称>` 只看一个人 |
 | 关注 / 取关 | `bili user follow <UID|昵称>`、`bili user unfollow <UID|昵称>`、`bili user following`（我关注的人）；只关注用户要求的或真正想长期看的人，不要批量关注 |

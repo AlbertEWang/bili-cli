@@ -118,7 +118,7 @@ def summarize_stats(overview: dict, fans: dict, source: dict, compare: dict, sur
 def stats(
     period: str = typer.Option("week", "--period", help="统计周期：yesterday / week / month / 3months（和上一周期对比）。"),
 ) -> None:
-    """创作中心数据：播放、访客、涨粉、互动、播放端分布、粉丝占比、超过多少同类 UP、昨日涨得最多的视频。数据次日更新。"""
+    """创作中心数据：播放、访客、涨粉、互动、播放端分布、粉丝占比、超过多少同类 UP、昨日涨得最多的视频。数据次日更新。累计总量和昨日增量看 `bili data overview`。"""
 
     async def body():
         from bilibili_api import creative_center as cc

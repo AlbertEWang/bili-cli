@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+### Added
+- `bili data`：把创作中心「数据中心」里 `me stats` / `upload stats` 之外的面板补齐，全部只读。
+  - `bili data overview`：累计播放 / 互动、昨日增量、周期对比（复用 `me.summarize_stats()`，和 `bili me stats` 同一份计算）、粉丝 / 路人播放占比、播放端分布、和同类 UP 主比、昨日涨最多的稿件。
+  - `bili data trend --type play --days 30`：最近 30 天的每日增量（播放、点赞、收藏、投币、评论、弹幕、分享、充电）。
+  - `bili data audience`：粉丝 / 路人的性别、年龄、省份分布（每周二更新），以及两边各自的兴趣覆盖率（可多选，合计超过 100%）。
+  - `bili data fans`：涨粉 / 取关、活跃粉丝、粉丝来源、涨粉趋势、最活跃的粉丝。
+  - `bili data videos`：稿件数据表（播放、点赞、评论、涨粉、完播率 + 诊断指标），播放数是当前总数；可按播放 / 完播 / 涨粉排序。
+  - `bili data video <BV>`：单稿的粉丝 / 路人播放、完播率、平均观看时长、省份，以及 3 秒退出率、封面点击倍数（相对同类中位；绝对值每次请求都会变）、互动率、播转粉率和同类分位；播放数是结算值。
+  - `bili data diagnose`：最近 N 个稿件的诊断指标横向对比。
+- 这些接口 `bilibili-api` 没有封装，直接按网页请求实现；比率字段（1/10000）换算成百分比，`not_ready_field` 里没算完的指标会被跳过；HTTP 412 按项目约定报 `risk_control`。
+- `charge` 是 B 站原始数值，单位未确认，不要当金额用。
+
 ## [1.1.2] - 2026-10-26
 
 ### Fixed
