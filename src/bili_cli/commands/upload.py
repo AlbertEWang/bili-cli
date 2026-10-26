@@ -765,7 +765,7 @@ def video_rates(stat: dict[str, Any]) -> dict[str, float | None]:
 
 @app.command()
 def stats(bvid: str = typer.Argument(..., help="自己的稿件 BV 号。")) -> None:
-    """单个稿件的数据：播放与互动、每百次播放的互动率、完播率和平均观看时长（创作中心数据，次日更新）。"""
+    """单个稿件的数据：播放与互动、每百次播放的互动率、完播率和平均观看时长（创作中心数据，次日更新）。更细的观众画像和诊断看 `bili data video`。"""
 
     async def body():
         from bilibili_api import video as bvideo

@@ -154,3 +154,39 @@ bili user videos <UID> --order views --size 10   # 同类 UP 的爆款，借鉴�
 ```
 
 创作中心数据次日更新：刚发的稿件第二天才有完播率。收藏率明显高于点赞率，通常说明观众觉得“有用、回头再看”。
+
+### 数据中心（`bili data`）
+
+数据中心里 `me stats` / `upload stats` 之外的面板都在这里，都是只读命令：
+
+```bash
+bili data overview                     # 累计播放/互动 + 昨日增量 + 和 me stats 同一份的周期对比 + 同类对比 + 昨日涨最多的稿
+bili data overview --period month      # 换周期：yesterday / week / month / 3months
+bili data trend --type play --days 30  # 每日增量：哪天爆了、哪天掉下去（like / favorite / coin / comment / danmaku / share / charge）
+bili data audience                     # 观众画像：粉丝 vs 路人的性别、年龄、省份、兴趣标签
+bili data fans --period week           # 涨粉/取关、活跃粉丝、粉丝来源、涨粉趋势、最活跃的粉丝
+bili data videos --limit 20 --sort completion   # 稿件数据表：播放、点赞、评论、涨粉、完播率
+bili data video <BV>                   # 单稿：观众画像、完播率、平均观看时长、省份、3 秒退出率、封面点击倍数、播转粉率、同类分位
+bili data diagnose --size 10           # 最近 10 个稿件的诊断指标横向比
+```
+
+和已有命令的关系（别拿同一个数字的两个版本互相比）：
+
+- `bili data overview` 的周期对比直接复用 `bili me stats` 的计算，只是额外给累计总量和昨日增量——快速看一眼用 `me stats`，要总量/昨日增量用 `data overview`。
+- `bili data video` 的完播率和 `bili upload stats` 是同一个数，额外给观众画像、省份和诊断指标。
+
+口径（别混）：
+
+- **播放数两个口径**：`data videos` 是当前总数（接近实时），`data video` 是截至 `data_date` 的结算数，同一个稿件两者会差不少。
+- **次日结算**：`overview` 的累计与昨日增量、`video` 的互动与诊断指标都截至 `data_date`；`trend` 的每日增量与 `overview` 的昨日增量对得上。
+- **观众画像**：性别 / 年龄 / 地区由 B 站每周二更新前一周的数据；兴趣标签是另一套统计，更新周期不同，而且是**可多选的覆盖率**，`viewers_percent` 合计会超过 100%。
+- **封面点击**：接口每次返回的绝对值会变，命令只给 `cover_click_vs_peer_median`（相对**同类稿件中位**的倍数，不是你自己稿件的）和稳定的同类分位，不要当百分比用。
+- **粉丝**：`yesterday.fans_net` 是结算值；`fans.total` 是实时值。
+- **charge**：B 站原始数值，单位未确认（按电池、元、分换算都对不上），不要当金额用。
+
+复盘时值得看的组合：
+
+- **播放涨、完播低**：标题/封面把人骗进来了，但内容没留住——看 `bili data video` 的 `early_exit_percent`（3 秒退出率）和 `peer_median_percent`。
+- **播放持平、互动高**：内容质量在线但分发不够，参考 `versus_peers`，再想想分区和投稿时间。
+- **粉丝画像和你想的不一样**：`bili data audience` 的兴趣标签来自 B 站自己的统计，按它调整选题比凭感觉准。
+- **某天突然涨/跌**：`bili data trend --type play` 找到那天，再用 `bili data videos` 看当天哪个稿件在涨。
