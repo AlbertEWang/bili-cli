@@ -25,7 +25,7 @@ from bilibili_api.utils.network import Api
 from .. import config, health, im_push, output
 from ..errors import BiliError, from_exception
 from ..runtime import WEB_HEADERS, iso_time, run
-from .dm import ACK_URL, MSG_TYPES, _content, _names, _page, _resolve_uid
+from .dm import ACK_URL, AUTO_REPLY_SOURCE, MSG_TYPES, _content, _names, _page, _resolve_uid
 
 SESSIONS_URL = "https://api.vc.bilibili.com/session_svr/v1/session_svr/get_sessions"
 NEW_SESSIONS_URL = "https://api.vc.bilibili.com/session_svr/v1/session_svr/new_sessions"
@@ -125,6 +125,7 @@ async def _watch(duration: float, max_events: int, only: Optional[int], include_
                 "time": iso_time(m.get("timestamp")),
                 "seqno": m.get("msg_seqno"),
                 "source": m.get("msg_source"),
+                **({"auto_reply": True} if m.get("msg_source") == AUTO_REPLY_SOURCE else {}),
                 "reply_with": f"bili dm send {talker} \"...\"",
             })
             if not mine:

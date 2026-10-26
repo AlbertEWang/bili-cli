@@ -29,6 +29,9 @@ USER_CARDS_URL = "https://api.vc.bilibili.com/account/v1/user/cards"
 RELATION_URL = "https://api.bilibili.com/x/relation"
 ACK_URL = "https://api.vc.bilibili.com/session_svr/v1/session_svr/update_ack"
 MSG_TYPES = {1: "text", 2: "image", 5: "withdrawn", 7: "video_share", 10: "notification", 12: "card"}
+# B 站's own auto-replies (被关注回复 / 关键词回复 / 收到消息回复) are sent in our name with this msg_source.
+# They are not a real answer: someone who follows and writes at once still waits for one.
+AUTO_REPLY_SOURCE = 8
 
 
 def _content(msg: dict[str, Any]) -> str | None:
@@ -90,9 +93,25 @@ def _resolve_uid(value: str) -> int:
     return int(value)
 
 
+async def _sessions(cred, limit: int) -> list[dict[str, Any]]:
+    """The `limit` most recent conversations. The endpoint returns 20 per page; older pages via end_ts."""
+    sessions: list[dict[str, Any]] = []
+    end_ts = None
+    while len(sessions) < limit:
+        params = {"session_type": 1, "group_fold": 1, "unfollow_fold": 0, "sort_rule": 2, "build": 0, "mobi_app": "web"}
+        if end_ts:
+            params["end_ts"] = end_ts
+        data = await Api(**SESSION_API["session"]["get"], credential=cred).update_params(**params).result or {}
+        page = data.get("session_list") or []
+        sessions += page
+        if not page or not data.get("has_more") or not page[-1].get("session_ts"):
+            break
+        end_ts = page[-1]["session_ts"]
+    return sessions[:limit]
+
+
 async def conversations(cred, unread_only: bool, limit: int) -> list[dict[str, Any]]:
-    data = await session.get_sessions(cred, session_type=1)
-    sessions = data.get("session_list") or []
+    sessions = await _sessions(cred, limit)
     if unread_only:
         sessions = [s for s in sessions if s.get("unread_count")]
     sessions = sessions[:limit]
@@ -112,6 +131,7 @@ async def conversations(cred, unread_only: bool, limit: int) -> list[dict[str, A
                 "from": "me" if int(last.get("sender_uid") or 0) == me else "them",
                 "text": _content(last),
                 "time": iso_time(last.get("timestamp")),
+                **({"auto_reply": True} if last.get("msg_source") == AUTO_REPLY_SOURCE else {}),
             } if last else None,
             "read_with": f"bili dm read {mid}",
         })
@@ -125,9 +145,9 @@ async def unread_conversations(cred, limit: int) -> list[dict[str, Any]]:
 @app.command("list")
 def list_(
     unread: bool = typer.Option(False, "--unread", help="只看有未读消息的会话。"),
-    limit: int = typer.Option(20, "--limit", min=1, max=50, help="最多返回多少个会话。"),
+    limit: int = typer.Option(20, "--limit", min=1, max=200, help="最多返回多少个会话（超过 20 个会往前翻页）。"),
 ) -> None:
-    """私信会话列表：对方是谁、未读数、最后一条消息。"""
+    """私信会话列表：对方是谁、未读数、最后一条消息。最后一条是 B 站替你发的自动回复时带 `auto_reply: true`，对方其实还在等回复。"""
 
     async def body():
         return {"items": await conversations(config.require_credential(), unread, limit)}
@@ -155,6 +175,7 @@ def read(
                 "text": _content(m),
                 "time": iso_time(m.get("timestamp")),
                 "seqno": m.get("msg_seqno"),
+                **({"auto_reply": True} if m.get("msg_source") == AUTO_REPLY_SOURCE else {}),
             }
             for m in msgs
         ]
